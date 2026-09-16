@@ -29,6 +29,7 @@ create table if not exists answers (
   question_id   uuid not null references questions(id) on delete cascade,
   body          text not null check (char_length(body) between 1 and 2000),
   nickname      text check (char_length(nickname) <= 20),
+  responder_role text check (char_length(responder_role) <= 30),  -- 「地域で働く人」「以前同じことで悩んだ人」など。名前の代わりに立場を出す
   approved      boolean not null default false,
   approved_at   timestamptz,
   created_at    timestamptz not null default now(),
@@ -69,12 +70,13 @@ create policy "react"                    on reactions for insert to anon, authen
 create or replace view public_questions as
 select q.id, q.body, coalesce(nullif(q.nickname,''), 'だれか') as nickname, q.theme_id, t.label as theme_label,
        q.card_image, q.source, q.created_at,
-       (select count(*) from answers a where a.question_id = q.id and a.approved) as answer_count,
-       (select count(*) from reactions r where r.target_type = 'question' and r.target_id = q.id and r.kind = 'kyokan') as kyokan_count
+       (select count(*) from answers a where a.question_id = q.id and a.approved) as answer_count
+       -- 反応の件数は公開ビューに出さない（人気の比較を作らない。運営の参考値としてテーブルにだけ残す）
 from questions q left join themes t on t.id = q.theme_id
 where q.approved;
 
 -- 承認は service_role（管理画面）だけ。anon には update/delete のポリシーを作らない。
+-- 投函後の状態は公開側では 3 つ: 受けとった（未承認）→ 大人へ渡している（承認済み・返事 0）→ 返事が届いた（返事 1 以上）。
 
 insert into themes (id, label, sort_order) values
  ('ikikata',   '生き方',     10),
