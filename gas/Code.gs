@@ -10,7 +10,7 @@
  *
  * NEW_SITE_URL が空のあいだは旧 doGet_old にそのまま渡すので、貼るだけなら何も変わらない。
  */
-var NEW_SITE_URL = "";   // 例: "https://toi.example.com/"
+var NEW_SITE_URL = "https://nirareba0.github.io/toi-site/";
 
 function doGet(e) {
   if (!NEW_SITE_URL) {
