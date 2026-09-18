@@ -342,8 +342,8 @@ export function createInitialState() {
  * 中高生が見るサイトなので、確認できていない URL を推測で入れないこと。
  */
 export const SITE_LINKS = {
-  instagram: "",   // 例: "https://www.instagram.com/xxxxx/"  Miacis の公式アカウント
-  operator: ""     // 例: "https://xxxxx.com/"  にしむ（運営者）の個人サイト
+  instagram: "https://www.instagram.com/miacis_1009/",   // Miacis の公式アカウント
+  operator: "https://nirareba0.github.io/"              // にしむ（運営者）のサイト
 };
 
 /**
