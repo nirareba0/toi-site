@@ -1,6 +1,7 @@
 // supabase/import-data.mjs
 // 旧 data.json（69問・67返事）と supabase/data-fixups.json から Supabase REST 経由でデータを移行する。
 import { readFileSync, existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -66,7 +67,11 @@ try {
   process.exit(1);
 }
 
-const responderRoles = fixups.responderRoles ?? {};
+// 回答者名は公開リポジトリに残さないため、sha256 の先頭12桁で引く。
+const rolesByHash = { ...(fixups.responderRolesByHash ?? {}) };
+delete rolesByHash._note;
+const authorHash = (name) => createHash("sha256").update(name).digest("hex").slice(0, 12);
+const roleOf = (name) => rolesByHash[authorHash(name)] ?? null;
 const questionBodyFixes = fixups.questionBodyFixes ?? {};
 const answerBodyFixes = fixups.answerBodyFixes ?? {};
 const dropQuestions = new Set((fixups.dropQuestions ?? []).map(String));
@@ -83,7 +88,7 @@ for (const m of fixups.mergeQuestions ?? []) {
 }
 
 // 立場が未確定（__CONFIRM__）のまま投入しない
-const unconfirmed = Object.entries(fixups.responderRoles ?? {})
+const unconfirmed = Object.entries(rolesByHash)
   .filter(([, role]) => String(role).includes("__CONFIRM__"));
 if (unconfirmed.length > 0) {
   console.error("エラー: 回答者の立場が未確定のままです。推測で公開しないため中止します。");
@@ -97,13 +102,13 @@ const unmappedAuthors = new Set();
 for (const a of data.answers ?? []) {
   if (dropQuestions.has(String(a.question_id))) continue;
   const author = (a.author ?? "").trim();
-  if (author && !(author in responderRoles)) {
+  if (author && !roleOf(author)) {
     unmappedAuthors.add(author);
   }
 }
 
 if (unmappedAuthors.size > 0) {
-  console.error("エラー: responderRoles にマッピングされていない回答者名が存在します。勝手に推測せず、fixups に立場を追加してください:");
+  console.error("エラー: responderRolesByHash に無い回答者がいます。勝手に推測せず、名前の sha256 先頭12桁をキーにして立場を足してください:");
   for (const name of unmappedAuthors) {
     console.error(`  - ${name}`);
   }
@@ -176,7 +181,7 @@ for (const a of data.answers ?? []) {
     modifiedAnswers.push({ id: a.id, original: a.text, fixed: body });
   }
   const author = (a.author ?? "").trim();
-  const responder_role = author ? (responderRoles[author] ?? null) : null;
+  const role_id = author ? roleOf(author) : null;
   const createdAt = parseDate(a.date);
   answersToInsert.push({
     id: uuidFor("a" + a.id),
@@ -184,7 +189,7 @@ for (const a of data.answers ?? []) {
     body,
     nickname: null, // nickname は一切入れない（null）
     card_image: answerCards[a.id] ?? null,
-    responder_role,
+    role_id,
     approved: true,
     approved_at: createdAt,
     created_at: createdAt
@@ -204,7 +209,7 @@ if (isDryRun) {
   for (const m of modifiedAnswers) {
     console.log(`  - 返事 [${m.id}]: "${m.original}" -> "${m.fixed}"`);
   }
-  console.log(`[dry-run] 回答者の立場マッピング (responderRoles): ${Object.keys(responderRoles).length} 件適用`);
+  console.log(`[dry-run] 回答者の立場マッピング (ハッシュ照合): ${Object.keys(rolesByHash).length} 件`);
   process.exit(0);
 }
 
