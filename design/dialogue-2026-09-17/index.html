@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="韮崎市 青少年育成プラザ Miacis（ミアキス）問いコーナー。自分で問い、誰かの考えにふれるローカル体験版プロトタイプです。">
+  <title>Miacis 問いコーナー（体験版）</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='20' font-size='20'>💭</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- スキップリンク -->
+  <a href="#main-content" class="skip-link">メインコンテンツへスキップ</a>
+
+  <!-- 全画面固定の体験版免責表示 -->
+  <aside class="app-disclaimer-bar" aria-label="プロトタイプ利用上の注意">
+    <div class="disclaimer-inner">
+      <span class="disclaimer-tag">体験版</span>
+      <p class="disclaimer-text">入力はこのタブ内だけ。再読み込みで消えます。</p>
+    </div>
+  </aside>
+
+  <!-- ヘッダー -->
+  <header class="app-header">
+    <div class="header-container">
+      <a href="#home" class="brand-link" aria-label="Miacis 問いコーナー トップへ">
+        <svg class="brand-motif-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <!-- 重なる紙片と問いのモチーフ -->
+          <rect x="4" y="5" width="13" height="15" rx="2" fill="#edf5ff" stroke="#244fc7"/>
+          <rect x="8" y="3" width="13" height="15" rx="2" fill="#ffffff" stroke="#244fc7"/>
+          <path d="M12 9a1.5 1.5 0 0 1 2.5 1c0 1-1.5 1.5-1.5 2.5" stroke="#244fc7"/>
+          <circle cx="13" cy="15" r="0.6" fill="#244fc7"/>
+        </svg>
+        <span class="brand-title">Miacis 問いコーナー</span>
+      </a>
+
+      <!-- デスクトップ用ナビゲーション -->
+      <nav class="desktop-nav" aria-label="サイト主要ナビゲーション">
+        <ul class="desktop-nav-list">
+          <li><a href="#home" class="desktop-nav-link" data-route="home">みんなの問い</a></li>
+          <li><a href="#about" class="desktop-nav-link" data-route="about">この場所について</a></li>
+          <li>
+            <a href="#inbox" class="desktop-nav-link" data-route="inbox">
+              自分への返事
+              <span id="nav-inbox-badge" class="inbox-badge" hidden aria-label="新着あり">0</span>
+            </a>
+          </li>
+          <li><a href="#ask" class="btn btn-primary btn-sm desktop-ask-btn" data-route="ask">問いを書く</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <!-- メイン表示領域（ハッシュルーティングで動的描画） -->
+  <main id="main-content" class="app-main" tabindex="-1">
+    <noscript>
+      <div class="card p-lg" style="margin: 2rem auto; max-width: 600px;">
+        <h2>JavaScriptが無効です</h2>
+        <p>このプロトタイプは画面遷移とローカル状態管理にJavaScriptを使用しています。ブラウザの設定でJavaScriptを有効にしてご覧ください。</p>
+      </div>
+    </noscript>
+  </main>
+
+  <!-- フッター -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div class="footer-meta">
+        <p class="footer-facility">山梨県韮崎市 青少年育成プラザ Miacis（ミアキス）問いコーナー</p>
+        <p class="footer-sub">自分で問い、誰かの考えにふれる。答えがひとつに決まらなくても、そこから見えてくるものがある。</p>
+      </div>
+      <div class="footer-links">
+        <a href="#about" class="footer-link">この場所について</a>
+        <a href="#inbox" class="footer-link">自分への返事</a>
+        <a href="https://www.mhlw.go.jp/mamorouyokokoro/soudan/sns/" target="_blank" rel="noopener noreferrer" class="footer-link external-link">
+          相談窓口一覧（厚生労働省）
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- モバイル用固定下部ナビゲーション -->
+  <nav class="mobile-bottom-nav" aria-label="モバイル下部ナビゲーション">
+    <div class="bottom-nav-inner">
+      <a href="#home" class="bottom-nav-item" data-bottom-route="home">
+        <svg class="bottom-nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 6h16M4 12h16M4 18h10"></path>
+        </svg>
+        <span class="bottom-nav-label">みんなの問い</span>
+      </a>
+      <a href="#ask" class="bottom-nav-item bottom-nav-ask" data-bottom-route="ask">
+        <svg class="bottom-nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 20h9"></path>
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+        </svg>
+        <span class="bottom-nav-label">問いを書く</span>
+      </a>
+      <a href="#inbox" class="bottom-nav-item" data-bottom-route="inbox">
+        <div class="bottom-icon-wrap">
+          <svg class="bottom-nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+            <polyline points="22,6 12,13 2,6"></polyline>
+          </svg>
+          <span id="bottom-inbox-badge" class="bottom-badge" hidden aria-label="未読あり"></span>
+        </div>
+        <span class="bottom-nav-label">自分への返事</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- アクセシブルな確認ダイアログ (モーダル) -->
+  <dialog id="app-dialog" class="app-dialog" aria-labelledby="dialog-title" aria-describedby="dialog-desc">
+    <div class="dialog-content">
+      <h3 id="dialog-title" class="dialog-title">確認</h3>
+      <p id="dialog-desc" class="dialog-desc"></p>
+      <div class="dialog-actions">
+        <button type="button" id="dialog-cancel-btn" class="btn btn-secondary">キャンセル</button>
+        <button type="button" id="dialog-confirm-btn" class="btn btn-danger">取り下げる</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- スクリーンリーダー用ライブ領域 -->
+  <div id="live-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- アプリケーションモジュール -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>

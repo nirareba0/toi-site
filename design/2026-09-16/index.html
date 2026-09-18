@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="韮崎市 青少年育成プラザ Miacis の問いコーナー。中高生が問いを投げかけ、地域の大人と視点を持ち寄るWeb試作です。">
+  <title>問う応える — Miacis 問いコーナー（デザイン試作）</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- スキップリンク -->
+  <a href="#main-heading" class="skip-link">メインコンテンツへスキップ</a>
+
+  <!-- 全画面固定プロトタイプ明示バナー -->
+  <aside class="proto-banner" aria-label="プロトタイプ注意表示">
+    <div class="banner-inner">
+      <span class="banner-badge">デザイン試作</span>
+      <span class="banner-text">架空の例文です。入力は送信・保存されません。</span>
+    </div>
+  </aside>
+
+  <!-- ヘッダー -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="#home" class="brand" aria-label="問う応える ホームへ">
+        <svg class="brand-symbol" width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+          <!-- 向かい合う2つの括弧（ことばの余白シンボル） -->
+          <path d="M10 6C6.5 9.5 6.5 18.5 10 22" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M18 6C21.5 9.5 21.5 18.5 18 22" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <span class="brand-name">問う応える</span>
+      </a>
+
+      <nav class="site-nav" aria-label="主要ナビゲーション">
+        <ul class="nav-list">
+          <li><a href="#home" class="nav-link" data-route="home">問いを読む</a></li>
+          <li><a href="#status" class="nav-link" data-route="status">返事を確認</a></li>
+          <li><a href="#about" class="nav-link" data-route="about">この場所について</a></li>
+        </ul>
+      </nav>
+
+      <div class="header-action">
+        <a href="#ask" class="btn btn-primary btn-sm" data-route="ask">問いを書く</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- メインコンテンツ表示領域（ハッシュルーティングで動的切り替え） -->
+  <main id="main-content" class="site-main" tabindex="-1">
+    <!-- app.js によって画面コンテンツが描画されます -->
+    <noscript>
+      <div class="reading-container text-content" style="padding: 40px 0;">
+        <h1>JavaScriptが無効です</h1>
+        <p>この試作プロトタイプを閲覧・操作するには、ブラウザのJavaScriptを有効にしてください。</p>
+      </div>
+    </noscript>
+  </main>
+
+  <!-- フッター -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <!-- 相談導線 -->
+      <section class="footer-help-section" aria-labelledby="footer-help-title">
+        <h2 id="footer-help-title" class="footer-heading">今すぐ誰かに話したいとき</h2>
+        <p class="footer-help-desc">
+          ここは、すぐに返事をする相談窓口ではありません。悩んでいることや苦しい気持ちを今すぐ誰かに聞いてほしいときは、専門の相談窓口を利用してください。
+        </p>
+        <div class="footer-help-action">
+          <a href="https://www.mhlw.go.jp/mamorouyokokoro/soudan/sns/" 
+             class="btn btn-outline" 
+             target="_blank" 
+             rel="noopener noreferrer">
+            相談先を探す（外部サイト）
+            <svg class="icon-external" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M11 7.5V11C11 11.5523 10.5523 12 10 12H3C2.44772 12 2 11.5523 2 11V4C2 3.44772 2.44772 3 3 3H6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M8.5 2H12V5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M6 8L11.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </a>
+        </div>
+      </section>
+
+      <!-- フッターナビ & 地域性表示 -->
+      <div class="footer-bottom">
+        <div class="footer-meta">
+          <p class="footer-origin">
+            山梨県韮崎市 青少年育成プラザ Miacis（ミアキス）問いコーナー<br>
+            <span>問いをきっかけに、いろいろな大人の考えに出会う場所です。</span>
+          </p>
+        </div>
+        <div class="footer-links">
+          <a href="#adult-reply" class="footer-sublink" data-route="adult-reply">大人として返事を書く方へ（試作デモ）</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

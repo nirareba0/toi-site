@@ -3,3 +3,6 @@
 node_modules/
 .supabase/
 .DS_Store
+
+# 中高生の手書き素材は Git に入れない（正本: 個人 Drive AIOS/assets/toi-site/design-web/）
+design/astra-2026-09-17/assets/sticky-wall.jpg

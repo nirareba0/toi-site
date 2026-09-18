@@ -1,0 +1,1114 @@
+/**
+ * app.js - Miacis 問いコーナー プロトタイプ UI制御 & ルーティング
+ * ES Module
+ */
+
+import {
+  createInitialState,
+  validateQuestionDraft,
+  countCharacters,
+  submitQuestion,
+  getPublicQuestions,
+  getUserQuestions,
+  getQuestionById,
+  getPublicQuestionById,
+  getUnreadCount,
+  markQuestionAsRead,
+  approveQuestion,
+  addReplyToQuestion,
+  withdrawQuestion,
+  getNextSpotlightQuestion,
+  getCurrentSpotlightQuestion,
+  getReceiptQuestion,
+  resolveRoute,
+  setDraft,
+  getPromptHint,
+  PROMPT_CHIPS,
+  TOPICS,
+  DEFAULT_TOPIC,
+  DEFAULT_NICKNAME,
+  MAX_BODY_LENGTH
+} from './core.mjs';
+
+// アプリケーション全体の状態（タブ内メモリ保持）
+const state = createInitialState();
+
+// DOM要素参照
+const mainContainer = document.getElementById('main-content');
+const liveAnnouncer = document.getElementById('live-announcer');
+const navInboxBadge = document.getElementById('nav-inbox-badge');
+const bottomInboxBadge = document.getElementById('bottom-inbox-badge');
+const appDialog = document.getElementById('app-dialog');
+const dialogTitle = document.getElementById('dialog-title');
+const dialogDesc = document.getElementById('dialog-desc');
+const dialogConfirmBtn = document.getElementById('dialog-confirm-btn');
+const dialogCancelBtn = document.getElementById('dialog-cancel-btn');
+
+let pendingWithdrawQuestionId = null;
+let activePromptChipId = null;
+
+/**
+ * スクリーンリーダー向けアナウンス
+ * @param {string} message
+ */
+function announce(message) {
+  if (liveAnnouncer) {
+    liveAnnouncer.textContent = '';
+    // 微小な遅延で再設定し読み上げをトリガー
+    setTimeout(() => {
+      liveAnnouncer.textContent = message;
+    }, 50);
+  }
+}
+
+/**
+ * ナビゲーションの未読バッジ & アクティブ状態更新
+ * @param {string} currentRoute
+ */
+function updateNavigation(currentRoute) {
+  const unreadCount = getUnreadCount(state);
+
+  // デスクトップバッジ
+  if (navInboxBadge) {
+    if (unreadCount > 0) {
+      navInboxBadge.textContent = String(unreadCount);
+      navInboxBadge.hidden = false;
+    } else {
+      navInboxBadge.hidden = true;
+    }
+  }
+
+  // モバイル下部ナビバッジ
+  if (bottomInboxBadge) {
+    bottomInboxBadge.hidden = unreadCount === 0;
+  }
+
+  // デスクトップナビのアクティブ状態
+  document.querySelectorAll('.desktop-nav-link').forEach(link => {
+    const route = link.getAttribute('data-route');
+    if (route === currentRoute || (currentRoute.startsWith('question/') && route === 'home')) {
+      link.classList.add('active');
+    } else {
+      link.classList.remove('active');
+    }
+  });
+
+  // モバイル下部ナビのアクティブ状態
+  document.querySelectorAll('.bottom-nav-item').forEach(item => {
+    const route = item.getAttribute('data-bottom-route');
+    if (route === currentRoute || (currentRoute.startsWith('question/') && route === 'home')) {
+      item.classList.add('active');
+    } else {
+      item.classList.remove('active');
+    }
+  });
+}
+
+/**
+ * 安全なHTMLエスケープ
+ * @param {string} str
+ * @returns {string}
+ */
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/* ==========================================================================
+   各画面のレンダラー
+   ========================================================================== */
+
+/**
+ * 1. ホーム画面 (#home / 初期表示)
+ * @param {boolean} [shouldFocusHeading=true]
+ */
+function renderHome(shouldFocusHeading = true) {
+  const publicQuestions = getPublicQuestions(state, state.selectedTopicFilter);
+  const currentSpotlight = getCurrentSpotlightQuestion(state);
+
+  mainContainer.innerHTML = `
+    <!-- デスクトップ用グリッドラッパー -->
+    <div class="home-desktop-grid">
+      <!-- 左カラム: コンパクトヒーロー -->
+      <section class="home-hero" aria-labelledby="home-heading">
+        <!-- トップモチーフ（紙片・引用符・問い） -->
+        <div class="home-motif-wrapper" aria-hidden="true">
+          <div class="paper-snippets-motif">
+            <span class="motif-shape-paper">？</span>
+            <span class="motif-shape-quote">“</span>
+            <span class="motif-shape-sparkle"></span>
+          </div>
+        </div>
+
+        <h1 id="home-heading" class="home-h1" tabindex="-1" aria-label="問いは、世界の見方をふやす。">
+          <span class="home-h1-line">問いは、</span>
+          <span class="home-h1-line">世界の見方をふやす。</span>
+        </h1>
+        <p class="home-subtitle">自分で問い、誰かの考えにふれる。答えがひとつに決まらなくても、そこから見えてくるものがある。</p>
+
+        <div class="home-cta-row">
+          <a href="#ask" class="btn btn-primary home-cta-primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 20h9"></path>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+            </svg>
+            問いを書く
+          </a>
+          <a href="#question-list-title" class="home-cta-secondary" id="anchor-read-first">まずは読んでみる</a>
+        </div>
+
+        <!-- 「別の問いをひらく」スポットライト -->
+        ${currentSpotlight ? `
+          <div class="spotlight-box" id="spotlight-container" aria-label="ピックアップされた問い">
+            <div class="spotlight-header">
+              <span class="spotlight-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                </svg>
+                ひらいた問い
+              </span>
+              <button type="button" id="btn-cycle-spotlight" class="btn-cycle-spotlight" aria-label="別の問いをひらく">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                </svg>
+                別の問いをひらく
+              </button>
+            </div>
+            <a href="#question/${currentSpotlight.id}" class="spotlight-body-link">${escapeHtml(currentSpotlight.body)}</a>
+            <div class="spotlight-footer">
+              <span>投稿: ${escapeHtml(currentSpotlight.author)}</span>
+              <span>•</span>
+              <span>${escapeHtml(currentSpotlight.topic)}</span>
+              <span>•</span>
+              <span class="reply-count-has-replies">${currentSpotlight.replies.length > 0 ? `返事 ${currentSpotlight.replies.length}件` : '返事待ち'}</span>
+            </div>
+          </div>
+        ` : ''}
+      </section>
+
+      <!-- 右カラム: 問い一覧 -->
+      <section class="question-list-section" aria-labelledby="question-list-title">
+        <div class="list-header-row">
+          <div class="list-title-wrap">
+            <h2 id="question-list-title" class="list-section-title">みんなの問い</h2>
+            <span class="sample-collective-badge">サンプル掲載中</span>
+          </div>
+
+          <!-- トピックフィルター (role=group と aria-pressed) -->
+          <div class="topic-filter-tabs" role="group" aria-label="トピックで絞り込み">
+            ${TOPICS.map(topic => `
+              <button type="button" 
+                      class="filter-tab-btn ${state.selectedTopicFilter === topic ? 'active' : ''}" 
+                      aria-pressed="${state.selectedTopicFilter === topic}" 
+                      data-topic="${topic}">
+                ${topic}
+              </button>
+            `).join('')}
+          </div>
+        </div>
+
+        <!-- 問いカード一覧 -->
+        <div class="questions-container" id="questions-list" role="feed" aria-label="公開された問い一覧">
+          ${publicQuestions.length === 0 ? `
+            <div class="card p-md" style="text-align: center; color: var(--color-body-muted);">
+              該当するトピックの問いはまだありません。
+            </div>
+          ` : publicQuestions.map(q => `
+            <article class="question-card" data-question-id="${q.id}">
+              <a href="#question/${q.id}" class="question-card-link" style="text-decoration: none; color: inherit;">
+                <div class="question-card-meta">
+                  <span class="badge badge-topic">${escapeHtml(q.topic)}</span>
+                  ${q.isSample ? '<span class="badge badge-sample">サンプル</span>' : ''}
+                  <span class="question-card-author">${escapeHtml(q.author)}</span>
+                </div>
+                <h3 class="question-card-body">${escapeHtml(q.body)}</h3>
+                <div class="question-card-footer">
+                  <span class="reply-count-tag ${q.replies.length > 0 ? 'reply-count-has-replies' : ''}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    ${q.replies.length > 0 ? `返事 ${q.replies.length}件` : '返事を待っています'}
+                  </span>
+                  <span class="card-read-more" style="color: var(--color-vivid-blue); font-weight: 600; font-size: 0.75rem;">
+                    読む →
+                  </span>
+                </div>
+              </a>
+            </article>
+          `).join('')}
+        </div>
+      </section>
+    </div>
+  `;
+
+  if (shouldFocusHeading) {
+    const h1 = document.getElementById('home-heading');
+    if (h1) h1.focus();
+  }
+
+  // イベントバインド: 別の問いをひらく
+  const cycleBtn = document.getElementById('btn-cycle-spotlight');
+  if (cycleBtn) {
+    cycleBtn.addEventListener('click', () => {
+      const next = getNextSpotlightQuestion(state);
+      if (next) {
+        renderHome(false);
+        const spotlightBox = document.getElementById('spotlight-container');
+        if (spotlightBox) {
+          spotlightBox.classList.add('paper-settle-animation');
+        }
+        announce(`別の問いを開きました: ${next.body}`);
+      }
+    });
+  }
+
+  // イベントバインド: まずは読んでみる スムーススクロール
+  const anchorRead = document.getElementById('anchor-read-first');
+  if (anchorRead) {
+    anchorRead.addEventListener('click', (e) => {
+      e.preventDefault();
+      const listHeading = document.getElementById('question-list-title');
+      if (listHeading) {
+        listHeading.scrollIntoView({ behavior: 'smooth' });
+        listHeading.setAttribute('tabindex', '-1');
+        listHeading.focus();
+      }
+    });
+  }
+
+  // イベントバインド: フィルター切り替え（フォーカス保持）
+  document.querySelectorAll('.filter-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const selected = btn.getAttribute('data-topic');
+      state.selectedTopicFilter = selected;
+      renderHome(false);
+      // クリックしたタブにフォーカスを戻す
+      const activeBtn = document.querySelector(`.filter-tab-btn[data-topic="${selected}"]`);
+      if (activeBtn) activeBtn.focus();
+      announce(`トピック「${selected}」の問いを表示しました`);
+    });
+  });
+}
+
+/**
+ * 2. 投稿作成画面 (#ask)
+ */
+function renderAsk() {
+  const currentDraft = state.currentDraft || { body: '', nickname: '', topic: '未分類' };
+  const currentCount = countCharacters(currentDraft.body);
+  const isOver = currentCount > MAX_BODY_LENGTH;
+  const activeHint = activePromptChipId ? getPromptHint(activePromptChipId) : null;
+
+  mainContainer.innerHTML = `
+    <div class="compose-container">
+      <div class="compose-header">
+        <h1 id="compose-heading" class="compose-h1" tabindex="-1">問いを書く</h1>
+        <p class="compose-supporting">まとまっていなくても大丈夫。</p>
+      </div>
+
+      <!-- プロンプトチップ（任意の書き出しヒント） -->
+      <section class="prompt-chips-section" aria-label="書き出しのヒント">
+        <div class="prompt-chips-title">書き出しのヒント（選ばなくても書けます）</div>
+        <div class="prompt-chips-list" role="group" aria-label="ヒントのキーワード">
+          ${PROMPT_CHIPS.map(chip => `
+            <button type="button" 
+                    class="chip-btn ${activePromptChipId === chip.id ? 'active' : ''}" 
+                    data-chip-id="${chip.id}"
+                    aria-pressed="${activePromptChipId === chip.id}">
+              ${chip.label}
+            </button>
+          `).join('')}
+        </div>
+        <div id="chip-hint-area" aria-live="polite">
+          ${activeHint ? `
+            <div class="chip-hint-box">
+              <strong>${activeHint.label}のヒント:</strong> ${activeHint.hint}
+            </div>
+          ` : ''}
+        </div>
+      </section>
+
+      <!-- 投稿フォーム -->
+      <form id="ask-form" novalidate>
+        <div class="form-group">
+          <label for="ask-body" class="form-label">
+            問い・話してみたいこと <span style="color: var(--color-vivid-blue);">*</span>
+          </label>
+          <textarea id="ask-body" 
+                    name="body" 
+                    class="form-textarea" 
+                    rows="5" 
+                    placeholder="いま気になっていること、ふと思ったこと、言葉にしにくいモヤモヤなど..."
+                    aria-describedby="body-helper char-count body-error"
+                    required>${escapeHtml(currentDraft.body)}</textarea>
+          
+          <div class="textarea-footer-row">
+            <span id="body-helper" class="exact-helper-text">一文でも送れます。</span>
+            <span id="char-count" class="char-counter ${isOver ? 'error' : ''}">
+              ${currentCount} / ${MAX_BODY_LENGTH}
+            </span>
+          </div>
+          <div id="body-error" class="error-message-text" role="alert"></div>
+        </div>
+
+        <div class="form-group">
+          <label for="ask-nickname" class="form-label">
+            ニックネーム <span class="form-label-optional">（省略すると「${DEFAULT_NICKNAME}」）</span>
+          </label>
+          <input type="text" 
+                 id="ask-nickname" 
+                 name="nickname" 
+                 class="form-input" 
+                 maxlength="20"
+                 placeholder="例: ゆき、ななし"
+                 value="${escapeHtml(currentDraft.nickname || '')}">
+        </div>
+
+        <div class="form-group">
+          <label for="ask-topic" class="form-label">
+            テーマ <span class="form-label-optional">（省略可）</span>
+          </label>
+          <select id="ask-topic" name="topic" class="form-select">
+            <option value="未分類" ${currentDraft.topic === '未分類' ? 'selected' : ''}>未分類</option>
+            <option value="暮らし" ${currentDraft.topic === '暮らし' ? 'selected' : ''}>暮らし</option>
+            <option value="自分" ${currentDraft.topic === '自分' ? 'selected' : ''}>自分</option>
+            <option value="もしも" ${currentDraft.topic === 'もしも' ? 'selected' : ''}>もしも</option>
+          </select>
+        </div>
+
+        <div class="form-actions" style="margin-top: 24px;">
+          <button type="submit" id="btn-to-confirm" class="btn btn-primary btn-block">
+            内容を確認する
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  const h1 = document.getElementById('compose-heading');
+  if (h1) h1.focus();
+
+  const bodyTextarea = document.getElementById('ask-body');
+  const nicknameInput = document.getElementById('ask-nickname');
+  const topicSelect = document.getElementById('ask-topic');
+  const charCountEl = document.getElementById('char-count');
+  const bodyErrorEl = document.getElementById('body-error');
+  const form = document.getElementById('ask-form');
+
+  // チップクリックイベント（本文を改変せず外側にヒント表示）
+  document.querySelectorAll('.chip-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const chipId = btn.getAttribute('data-chip-id');
+      if (activePromptChipId === chipId) {
+        activePromptChipId = null; // 解除
+      } else {
+        activePromptChipId = chipId;
+      }
+      // 下書きの現状を保持して再描画
+      saveFormToDraft();
+      renderAsk();
+      // チップにフォーカスを復帰
+      const updatedBtn = document.querySelector(`.chip-btn[data-chip-id="${chipId}"]`);
+      if (updatedBtn) updatedBtn.focus();
+    });
+  });
+
+  function saveFormToDraft() {
+    state.currentDraft = {
+      body: bodyTextarea.value,
+      nickname: nicknameInput.value,
+      topic: topicSelect.value
+    };
+  }
+
+  // 文字数カウントのリアルタイム反映
+  bodyTextarea.addEventListener('input', () => {
+    saveFormToDraft();
+    const count = countCharacters(bodyTextarea.value);
+    charCountEl.textContent = `${count} / ${MAX_BODY_LENGTH}`;
+    if (count > MAX_BODY_LENGTH) {
+      charCountEl.classList.add('error');
+    } else {
+      charCountEl.classList.remove('error');
+      bodyErrorEl.textContent = '';
+    }
+  });
+
+  nicknameInput.addEventListener('input', saveFormToDraft);
+  topicSelect.addEventListener('change', saveFormToDraft);
+
+  // 送信（確認画面へ進む）
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    saveFormToDraft();
+
+    const validation = validateQuestionDraft(state.currentDraft);
+    if (!validation.valid) {
+      bodyErrorEl.textContent = validation.errors.body || '入力内容をご確認ください。';
+      bodyTextarea.focus();
+      announce(validation.errors.body);
+      return;
+    }
+
+    // 検証OKなら確認画面へ遷移
+    window.location.hash = 'ask/confirm';
+  });
+}
+
+/**
+ * 3. 投稿内容確認画面 (#ask/confirm)
+ */
+function renderConfirm() {
+  if (!state.currentDraft || !state.currentDraft.body.trim()) {
+    // 下書きがない場合は投稿作成画面へ安全にリダイレクト
+    window.location.hash = 'ask';
+    return;
+  }
+
+  const validation = validateQuestionDraft(state.currentDraft);
+  if (!validation.valid) {
+    window.location.hash = 'ask';
+    return;
+  }
+  const normalized = validation.normalized;
+
+  mainContainer.innerHTML = `
+    <div class="preview-container">
+      <div class="compose-header">
+        <h1 id="confirm-heading" class="compose-h1" tabindex="-1">内容を確認する</h1>
+        <p class="compose-supporting">送る前に、文章と公開範囲を確認できます。体験版では実際のスタッフには送信されません。</p>
+      </div>
+
+      <!-- 公開時の見た目に整えた紙片カード -->
+      <div class="paper-sheet-card" aria-label="投稿内容のプレビュー">
+        <div class="preview-badge-row">
+          <span class="badge badge-topic">${escapeHtml(normalized.topic)}</span>
+          <span class="badge badge-status-pending">スタッフ確認待ち（予定）</span>
+        </div>
+        <div class="preview-body-text">${escapeHtml(normalized.body)}</div>
+        <div class="preview-meta-row">
+          <span>表示される名前: <strong>${escapeHtml(normalized.nickname)}</strong></span>
+        </div>
+      </div>
+
+      <!-- 届く相手と公開基準の明示 -->
+      <div class="transparent-audience-notice">
+        <div class="transparent-audience-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+          公開と確認について
+        </div>
+        <p>公開されると、このサイトを見る人が読めます。スタッフの確認前は公開されません。</p>
+      </div>
+
+      <!-- 同意チェックボックス (初期状態は未チェック) -->
+      <label class="checkbox-agree-label">
+        <input type="checkbox" id="confirm-agree-checkbox" class="checkbox-agree-input">
+        <span>公開内容と注意事項を確認しました</span>
+      </label>
+
+      <!-- 操作ボタン (同意チェックが入るまで無効化) -->
+      <div class="preview-actions-row">
+        <a href="#ask" id="btn-back-to-edit" class="btn btn-secondary">
+          ← 直す
+        </a>
+        <button type="button" id="btn-final-submit" class="btn btn-primary" disabled>
+          問いを送る（デモ）
+        </button>
+      </div>
+    </div>
+  `;
+
+  const h1 = document.getElementById('confirm-heading');
+  if (h1) h1.focus();
+
+  const agreeCheckbox = document.getElementById('confirm-agree-checkbox');
+  const finalSubmitBtn = document.getElementById('btn-final-submit');
+
+  agreeCheckbox.addEventListener('change', () => {
+    finalSubmitBtn.disabled = !agreeCheckbox.checked;
+  });
+
+  finalSubmitBtn.addEventListener('click', () => {
+    if (!agreeCheckbox.checked) return;
+
+    // 二重送信ガード: ボタンを無効化
+    finalSubmitBtn.disabled = true;
+
+    const result = submitQuestion(state);
+    if (!result.ok) {
+      alert(result.error);
+      finalSubmitBtn.disabled = false;
+      return;
+    }
+
+    // 送信成功後に受付完了画面へ
+    window.location.hash = `receipt/${result.question.id}`;
+  });
+}
+
+/**
+ * 4. 受付完了画面 (#receipt/:id)
+ * @param {string} questionId
+ */
+function renderReceipt(questionId) {
+  const question = getReceiptQuestion(state, questionId);
+  if (!question) {
+    mainContainer.innerHTML = `
+      <div class="card p-lg text-center" style="max-width: 500px; margin: 2rem auto;">
+        <h2 tabindex="-1">受付情報が見つかりません</h2>
+        <p>指定された問いが存在しないか、このタブで直前に送信された問いではありません。</p>
+        <div style="margin-top: 1rem;"><a href="#home" class="btn btn-primary">ホームへ戻る</a></div>
+      </div>
+    `;
+    const heading = mainContainer.querySelector('h2');
+    if (heading) {
+      heading.focus();
+    }
+    announce('受付情報が見つかりません。');
+    return;
+  }
+
+  mainContainer.innerHTML = `
+    <div class="receipt-container">
+      <div class="receipt-card paper-settle-animation" aria-labelledby="receipt-heading">
+        <div class="receipt-icon-wrap" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+
+        <h1 id="receipt-heading" class="receipt-title" tabindex="-1">問いを受け付けました</h1>
+        <p class="receipt-status-text">スタッフが確認中です</p>
+        <p class="receipt-sub-notice">まだ公開されていません</p>
+
+        <div class="receipt-preview-snippet">
+          <div style="font-size: 0.75rem; color: var(--color-body-muted); margin-bottom: 4px;">お預かりした問い:</div>
+          <div>${escapeHtml(question.body)}</div>
+        </div>
+
+        <div class="receipt-demo-disclaimer">
+          これは体験版の表示です。実際のスタッフへの送信はしていません。
+        </div>
+
+        <div class="receipt-actions">
+          <a href="#inbox" class="btn btn-primary btn-block">
+            自分への返事を見に行く
+          </a>
+          <a href="#home" class="btn btn-secondary btn-block">
+            みんなの問いへ戻る
+          </a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const h1 = document.getElementById('receipt-heading');
+  if (h1) h1.focus();
+
+  announce('問いを受け付けました。スタッフが確認中です。');
+}
+
+/**
+ * 5. 自分への返事 / インボックス (#inbox)
+ */
+function renderInbox() {
+  const userQuestions = getUserQuestions(state);
+  const pendingQuestions = userQuestions.filter(q => q.status === 'pending');
+  const approvedQuestions = userQuestions.filter(q => q.status === 'waiting' || q.status === 'answered');
+
+  mainContainer.innerHTML = `
+    <div class="inbox-container">
+      <div class="inbox-header">
+        <h1 id="inbox-heading" class="inbox-h1" tabindex="-1">自分への返事</h1>
+        <p class="inbox-desc">あなたが送った問いの確認状況や、届いた大人からの返事を読めます。</p>
+      </div>
+
+      <div class="inbox-list" id="inbox-questions-list">
+        ${userQuestions.length === 0 ? `
+          <div class="card" style="text-align: center; padding: 36px 20px;">
+            <p style="font-size: 1rem; color: var(--color-body); font-weight: 600; margin-bottom: 8px;">まだ投稿した問いがありません</p>
+            <p style="font-size: 0.875rem; color: var(--color-body-muted); margin-bottom: 20px;">「問いを書く」から自由に言葉を置いてみてください。</p>
+            <a href="#ask" class="btn btn-primary">問いを書く</a>
+          </div>
+        ` : userQuestions.map(q => {
+          let statusBadgeHtml = '';
+          let statusExplain = '';
+
+          if (q.status === 'pending') {
+            statusBadgeHtml = '<span class="badge badge-status-pending">スタッフ確認中</span>';
+            statusExplain = 'スタッフが内容を確認しています。まだ公開されていません。';
+          } else if (q.status === 'waiting') {
+            statusBadgeHtml = '<span class="badge badge-status-waiting">公開中・返事待ち</span>';
+            statusExplain = '公開されました。大人の返事を待っています。';
+          } else if (q.status === 'answered') {
+            statusBadgeHtml = '<span class="badge badge-status-answered">返事が届きました</span>';
+            statusExplain = `大人から ${q.replies.length} 件の返事が届いています。クリックして読めます。`;
+          } else if (q.status === 'withdrawn') {
+            statusBadgeHtml = '<span class="badge badge-status-withdrawn">取り下げ済み</span>';
+            statusExplain = 'この問いは公開を取り下げました。一覧には表示されません。';
+          }
+
+          const isUnread = !q.readByOwner && q.status === 'answered';
+          const isPubliclyViewable = q.isPublic && (q.status === 'waiting' || q.status === 'answered');
+
+          return `
+            <article class="inbox-card ${isUnread ? 'has-unread' : ''}">
+              <div class="inbox-card-top">
+                <div>
+                  ${statusBadgeHtml}
+                  <span class="badge badge-topic" style="margin-left: 4px;">${escapeHtml(q.topic)}</span>
+                </div>
+                ${isUnread ? '<span class="badge" style="background-color: var(--color-vivid-blue); color: #fff;">新着返信</span>' : ''}
+              </div>
+
+              ${isPubliclyViewable ? `
+                <a href="#question/${q.id}" class="inbox-body-link">
+                  ${escapeHtml(q.body)}
+                </a>
+              ` : `
+                <div class="inbox-body-text">
+                  ${escapeHtml(q.body)}
+                </div>
+              `}
+
+              <p class="inbox-status-explain">${statusExplain}</p>
+
+              <div class="inbox-card-actions">
+                ${isPubliclyViewable ? `
+                  <a href="#question/${q.id}" class="btn btn-secondary btn-sm">
+                    ${q.status === 'answered' ? '返事を読む' : '公開ページを見る'}
+                  </a>
+                  ${q.status !== 'withdrawn' ? `
+                    <button type="button" class="btn btn-outline btn-sm btn-withdraw" data-id="${q.id}">
+                      取り下げる
+                    </button>
+                  ` : '<span class="inbox-status-tag">取り下げ完了</span>'}
+                ` : `
+                  ${q.status === 'pending' ? `
+                    <span class="inbox-status-tag">確認待ち（非公開）</span>
+                    <button type="button" class="btn btn-outline btn-sm btn-withdraw" data-id="${q.id}">
+                      取り下げる
+                    </button>
+                  ` : `
+                    <span class="inbox-status-tag">取り下げ完了（非公開）</span>
+                  `}
+                `}
+              </div>
+            </article>
+          `;
+        }).join('')}
+      </div>
+
+      <!-- デモ操作パネル (スタッフ作業シミュレータ) -->
+      <details class="demo-ops-details">
+        <summary class="demo-ops-summary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          スタッフ確認のシミュレーション（デモ操作）
+        </summary>
+        <div class="demo-ops-content">
+          <p class="demo-ops-desc">
+            このパネルは運営スタッフの承認・返信作業を体験・テストするためのシミュレータです。実際の本番環境ではスタッフ専用画面で行われます。
+          </p>
+
+          <!-- 承認操作 -->
+          <div class="demo-op-item">
+            <h3 class="demo-op-title">1. 保留中の問いを承認・公開する</h3>
+            ${pendingQuestions.length === 0 ? `
+              <p style="font-size: 0.75rem; color: var(--color-body-muted);">現在、確認待ちの問いはありません。「問いを書く」から投稿してみてください。</p>
+            ` : `
+              <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+                <select id="select-pending-question" class="form-select" style="flex: 1; min-width: 200px;">
+                  ${pendingQuestions.map(q => `
+                    <option value="${q.id}">${escapeHtml(q.body.slice(0, 30))}...</option>
+                  `).join('')}
+                </select>
+                <button type="button" id="btn-demo-approve" class="btn btn-primary btn-sm">
+                  承認して公開する
+                </button>
+              </div>
+            `}
+          </div>
+
+          <!-- 返信操作 -->
+          <div class="demo-op-item">
+            <h3 class="demo-op-title">2. 承認済みの問いに大人の返信をつける</h3>
+            ${approvedQuestions.length === 0 ? `
+              <p style="font-size: 0.75rem; color: var(--color-body-muted);">返信をつけるには、まず上記の問いを承認して公開してください。</p>
+            ` : `
+              <div style="margin-top: 8px;">
+                <div style="margin-bottom: 8px;">
+                  <label for="select-approved-question" style="font-size: 0.75rem; font-weight: 600;">対象の問い:</label>
+                  <select id="select-approved-question" class="form-select">
+                    ${approvedQuestions.map(q => `
+                      <option value="${q.id}">${escapeHtml(q.body.slice(0, 30))}... (${q.status === 'answered' ? '返事あり' : '返事待ち'})</option>
+                    `).join('')}
+                  </select>
+                </div>
+
+                <div style="margin-bottom: 8px;">
+                  <label for="select-reply-preset" style="font-size: 0.75rem; font-weight: 600;">返信プリセット（大人視点）:</label>
+                  <select id="select-reply-preset" class="form-select">
+                    <option value="preset-1">やまだ（ユースワーカー・40代）: 「その違和感に気づいたこと自体が大切ですね」</option>
+                    <option value="preset-2">すずき（図書館司書・30代）: 「答えがすぐ出ない問いほど、長く付き合える宝物になります」</option>
+                    <option value="preset-3">なかむら（エンジニア・30代）: 「大人も手探りです。一緒に考えていきましょう」</option>
+                  </select>
+                </div>
+
+                <button type="button" id="btn-demo-add-reply" class="btn btn-primary btn-sm">
+                  返事を投稿する（デモ）
+                </button>
+              </div>
+            `}
+          </div>
+        </div>
+      </details>
+    </div>
+  `;
+
+  const h1 = document.getElementById('inbox-heading');
+  if (h1) h1.focus();
+
+  // 取り下げボタンイベントバインド (モーダル呼び出し)
+  document.querySelectorAll('.btn-withdraw').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const qId = btn.getAttribute('data-id');
+      openWithdrawDialog(qId);
+    });
+  });
+
+  // デモ操作: 承認ボタン
+  const approveBtn = document.getElementById('btn-demo-approve');
+  if (approveBtn) {
+    approveBtn.addEventListener('click', () => {
+      const selectPending = document.getElementById('select-pending-question');
+      if (selectPending && selectPending.value) {
+        const res = approveQuestion(state, selectPending.value);
+        if (res.ok) {
+          updateNavigation('inbox');
+          renderInbox();
+          announce('問いを承認し、みんなの問いへ公開しました。');
+        }
+      }
+    });
+  }
+
+  // デモ操作: 返信ボタン
+  const replyBtn = document.getElementById('btn-demo-add-reply');
+  if (replyBtn) {
+    replyBtn.addEventListener('click', () => {
+      const selectApproved = document.getElementById('select-approved-question');
+      const selectPreset = document.getElementById('select-reply-preset');
+      if (selectApproved && selectApproved.value) {
+        let author = 'やまだ';
+        let role = 'ユースワーカー・40代';
+        let body = 'その違和感に気づいたこと自体がとても大切な一歩ですね。モヤモヤしたときはいつでもまたここに来てください。';
+
+        if (selectPreset.value === 'preset-2') {
+          author = 'すずき';
+          role = '図書館司書・30代';
+          body = '答えがすぐ出ない問いほど、人生の中で長く付き合える宝物になります。立ち止まって考えてくれてありがとう。';
+        } else if (selectPreset.value === 'preset-3') {
+          author = 'なかむら';
+          role = 'エンジニア・30代';
+          body = '大人になっても毎日が手探りです。正解が分からなくても、自分の足で一歩ずつ進む面白さがありますよ。';
+        }
+
+        const res = addReplyToQuestion(state, selectApproved.value, { author, role, body });
+        if (res.ok) {
+          updateNavigation('inbox');
+          renderInbox();
+          announce('大人からの返事を追加しました。');
+        }
+      }
+    });
+  }
+}
+
+/**
+ * 6. 問い詳細画面 (#question/:id)
+ * @param {string} questionId
+ */
+function renderDetail(questionId) {
+  const question = getPublicQuestionById(state, questionId);
+  if (!question) {
+    mainContainer.innerHTML = `
+      <div class="card p-lg text-center" style="max-width: 500px; margin: 2rem auto;">
+        <h1 id="detail-not-found-heading" tabindex="-1" style="font-family: var(--font-heading); font-size: 1.25rem; font-weight: 800; margin-bottom: 8px;">問いが見つかりません</h1>
+        <p style="font-size: 0.9375rem; color: var(--color-body-muted); margin-bottom: 20px;">この問いは存在しないか、まだ公開されていないか、または取り下げられた可能性があります。</p>
+        <div><a href="#home" class="btn btn-primary">みんなの問いに戻る</a></div>
+      </div>
+    `;
+    const h1 = document.getElementById('detail-not-found-heading');
+    if (h1) h1.focus();
+    return;
+  }
+
+  // 閲覧時に既読処理
+  markQuestionAsRead(state, questionId);
+  updateNavigation(`question/${questionId}`);
+
+  let statusBadgeHtml = '';
+  if (question.status === 'pending') {
+    statusBadgeHtml = '<span class="badge badge-status-pending">スタッフ確認中</span>';
+  } else if (question.status === 'withdrawn') {
+    statusBadgeHtml = '<span class="badge badge-status-withdrawn">取り下げ済み</span>';
+  } else if (question.replies.length > 0) {
+    statusBadgeHtml = `<span class="badge badge-status-answered">返事 ${question.replies.length}件</span>`;
+  } else {
+    statusBadgeHtml = '<span class="badge badge-status-waiting">返事を待っています</span>';
+  }
+
+  mainContainer.innerHTML = `
+    <div class="detail-container">
+      <a href="${question.isSample ? '#home' : '#inbox'}" class="detail-back-link">
+        ← ${question.isSample ? 'みんなの問いに戻る' : '自分への返事に戻る'}
+      </a>
+
+      <!-- 問いの紙片 -->
+      <article class="question-sheet" aria-labelledby="question-detail-title">
+        <div class="question-sheet-top">
+          <span class="badge badge-topic">${escapeHtml(question.topic)}</span>
+          ${question.isSample ? '<span class="badge badge-sample">サンプル</span>' : ''}
+          ${statusBadgeHtml}
+        </div>
+
+        <h1 id="question-detail-title" class="question-sheet-h1" tabindex="-1">
+          ${escapeHtml(question.body)}
+        </h1>
+
+        <div class="question-sheet-author">
+          投稿者: <strong>${escapeHtml(question.author)}</strong>
+        </div>
+      </article>
+
+      <!-- 大人の返事セクション (並列・等幅) -->
+      <section class="replies-section" aria-labelledby="replies-title">
+        <h2 id="replies-title" class="replies-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+          </svg>
+          届いている大人の返事
+        </h2>
+
+        ${question.replies.length === 0 ? `
+          <div class="no-replies-yet">
+            <p style="font-weight: 600; margin-bottom: 4px;">まだ返事は届いていません</p>
+            <p style="font-size: 0.8125rem;">スタッフや大人があなたの問いを読んで返事を考えています。</p>
+          </div>
+        ` : `
+          <div class="replies-list">
+            ${question.replies.map(reply => `
+              <div class="reply-card">
+                <div class="reply-header">
+                  <div class="reply-author-info">
+                    <span class="reply-author-name">${escapeHtml(reply.author)}</span>
+                    <span class="reply-author-role">${escapeHtml(reply.role)}</span>
+                  </div>
+                </div>
+                <div class="reply-body">${escapeHtml(reply.body)}</div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </section>
+    </div>
+  `;
+
+  const h1 = document.getElementById('question-detail-title');
+  if (h1) h1.focus();
+}
+
+/**
+ * 7. この場所について (#about)
+ */
+function renderAbout() {
+  mainContainer.innerHTML = `
+    <div class="about-container">
+      <article class="about-article">
+        <h1 id="about-heading" class="about-h1" tabindex="-1">この場所について</h1>
+        
+        <p class="about-p">
+          山梨県韮崎市にある青少年のサードプレイス「青少年育成プラザ Miacis（ミアキス）」の館内にある紙の「問いコーナー」をWebに広げる試みです。
+        </p>
+
+        <h2 class="about-subtitle">問いは、世界の見方をふやす。</h2>
+        <p class="about-p">
+          学校や普段の生活では、「正しい答え」を早く出すことが求められがちです。けれど世の中には、すぐに答えが出ないことや、人によって見え方がまったく違うことがたくさんあります。
+        </p>
+        <p class="about-p">
+          「大人も将来が不安になる？」「ふつうってなんだろう？」<br>
+          そんな素朴な疑問やモヤモヤをここに投げかけると、いろいろな経験をもつ地域の大人たちが、それぞれの視点で返事を持ち寄ります。
+        </p>
+
+        <h2 class="about-subtitle">ひとことでも、まとまっていなくても。</h2>
+        <p class="about-p">
+          立派な哲学的な問いである必要はありません。一文だけでも、疑問の形になっていなくても大丈夫です。
+          あなたの投げかけたひとことが、誰かにとっての新しい見方のきっかけになります。
+        </p>
+
+        <div style="margin-top: 28px;">
+          <a href="#ask" class="btn btn-primary">問いを書いてみる</a>
+        </div>
+      </article>
+    </div>
+  `;
+
+  const h1 = document.getElementById('about-heading');
+  if (h1) h1.focus();
+}
+
+/* ==========================================================================
+   モーダルダイアログ制御 (取り下げ確認)
+   ========================================================================== */
+
+function openWithdrawDialog(questionId) {
+  const q = getQuestionById(state, questionId);
+  if (!q) return;
+
+  pendingWithdrawQuestionId = questionId;
+  dialogTitle.textContent = '問いを取り下げますか？';
+  dialogDesc.textContent = `「${q.body.slice(0, 30)}${q.body.length > 30 ? '...' : ''}」を取り下げます。取り下げると、みんなの問いの一覧から非公開になります。`;
+
+  if (typeof appDialog.showModal === 'function') {
+    appDialog.showModal();
+  } else {
+    // fallback for environments without showModal
+    appDialog.setAttribute('open', '');
+  }
+}
+
+function closeWithdrawDialog() {
+  pendingWithdrawQuestionId = null;
+  if (typeof appDialog.close === 'function') {
+    appDialog.close();
+  } else {
+    appDialog.removeAttribute('open');
+  }
+}
+
+// ダイアログのアクションバインド
+dialogCancelBtn.addEventListener('click', closeWithdrawDialog);
+
+dialogConfirmBtn.addEventListener('click', () => {
+  if (pendingWithdrawQuestionId) {
+    const res = withdrawQuestion(state, pendingWithdrawQuestionId);
+    closeWithdrawDialog();
+    if (res.ok) {
+      updateNavigation('inbox');
+      renderInbox();
+      announce('問いを取り下げました。');
+    } else {
+      alert(res.error);
+    }
+  }
+});
+
+// ESCキー対応
+appDialog.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeWithdrawDialog();
+  }
+});
+
+// 背景クリックで閉じる
+appDialog.addEventListener('click', (e) => {
+  const rect = appDialog.getBoundingClientRect();
+  const isInDialog = (
+    rect.top <= e.clientY &&
+    e.clientY <= rect.top + rect.height &&
+    rect.left <= e.clientX &&
+    e.clientX <= rect.left + rect.width
+  );
+  if (!isInDialog) {
+    closeWithdrawDialog();
+  }
+});
+
+/* ==========================================================================
+   ルーター (Hash Routing)
+   ========================================================================== */
+
+let currentRenderedRoute = null;
+
+function handleRouting() {
+  const rawHash = window.location.hash.replace(/^#\/?/, '');
+  const resolution = resolveRoute(window.location.hash);
+
+  if (resolution.type === 'skip') {
+    if (!currentRenderedRoute) {
+      renderHome(false);
+      currentRenderedRoute = 'home';
+    }
+    if (mainContainer) {
+      mainContainer.focus();
+    }
+    return;
+  }
+
+  currentRenderedRoute = resolution.path;
+  updateNavigation(rawHash || 'home');
+
+  if (resolution.type === 'route') {
+    if (resolution.path === 'home') {
+      renderHome();
+    } else if (resolution.path === 'ask') {
+      if (resolution.paramId === 'confirm') {
+        renderConfirm();
+      } else {
+        renderAsk();
+      }
+    } else if (resolution.path === 'receipt') {
+      renderReceipt(resolution.paramId);
+    } else if (resolution.path === 'inbox') {
+      renderInbox();
+    } else if (resolution.path === 'question') {
+      renderDetail(resolution.paramId);
+    } else if (resolution.path === 'about') {
+      renderAbout();
+    }
+  } else {
+    // 未知のルート
+    mainContainer.innerHTML = `
+      <div class="card p-lg text-center" style="max-width: 500px; margin: 2rem auto;">
+        <h2>ページが見つかりません</h2>
+        <p>指定されたURLは存在しないか、移動した可能性があります。</p>
+        <div style="margin-top: 1rem;"><a href="#home" class="btn btn-primary">トップへ戻る</a></div>
+      </div>
+    `;
+    const heading = mainContainer.querySelector('h2');
+    if (heading) {
+      heading.setAttribute('tabindex', '-1');
+      heading.focus();
+    }
+  }
+}
+
+// スキップリンクのクリック・キーボード選択対応（404回避とメインコンテンツへのフォーカス）
+const skipLink = document.querySelector('.skip-link');
+if (skipLink) {
+  skipLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (mainContainer) {
+      mainContainer.focus();
+    }
+  });
+}
+
+// ルーター起動
+window.addEventListener('hashchange', handleRouting);
+window.addEventListener('DOMContentLoaded', () => {
+  handleRouting();
+});
