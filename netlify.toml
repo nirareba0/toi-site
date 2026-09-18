@@ -1,0 +1,19 @@
+# 問う応える — 静的サイトの公開設定
+# 中身は web/ だけ。ビルドは無い（素の ES Modules）。
+
+[build]
+  publish = "web"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# 画像は内容が変わらない前提で長めにキャッシュする
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"

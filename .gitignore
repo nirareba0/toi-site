@@ -8,7 +8,6 @@ node_modules/
 design/astra-2026-09-17/assets/sticky-wall.jpg
 
 # Supabase 認証情報（本番環境設定）
-web/js/config.js
 
 # Supabase CLI の作業ファイル（プロジェクト参照のみ。秘密情報は含まないが追跡しない）
 supabase/.temp/

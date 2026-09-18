@@ -1606,3 +1606,33 @@ body {
   color: var(--color-body-muted, #5a6b82);
   vertical-align: middle;
 }
+
+/* この場所について — 実物の写真とロゴ */
+.about-figure { margin: 24px 0; }
+.about-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid var(--color-border, #dbe4f0);
+  background: #fff;
+}
+.about-figure figcaption {
+  margin-top: 8px;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--color-body-muted, #5a6b82);
+}
+.about-brand {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border, #dbe4f0);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.about-brand img { width: 88px; height: auto; flex: none; }
+.about-brand p { font-size: 0.8125rem; line-height: 1.7; color: var(--color-body-muted, #5a6b82); margin: 0; }
+@media (max-width: 400px) {
+  .about-brand { flex-direction: column; align-items: flex-start; }
+}

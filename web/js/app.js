@@ -939,6 +939,12 @@ function renderAbout() {
           山梨県韮崎市にある青少年のサードプレイス「青少年育成プラザ Miacis（ミアキス）」の館内にある紙の「問いコーナー」をWebに広げる試みです。
         </p>
 
+        <figure class="about-figure">
+          <img src="assets/toi-corner-notes.jpg" width="900" height="1273" loading="lazy" decoding="async"
+               alt="館内の問いコーナーに貼られた付箋。「幸せな家庭ってなに？」「人は1人では生きていけないの？」などの手書きの問いが並んでいる">
+          <figcaption>館内の問いコーナーに実際に寄せられた問い。ここから始まりました。</figcaption>
+        </figure>
+
         <h2 class="about-subtitle">問いは、世界の見方をふやす。</h2>
         <p class="about-p">
           学校や普段の生活では、「正しい答え」を早く出すことが求められがちです。けれど世の中には、すぐに答えが出ないことや、人によって見え方がまったく違うことがたくさんあります。
@@ -953,6 +959,12 @@ function renderAbout() {
           立派な哲学的な問いである必要はありません。一文だけでも、疑問の形になっていなくても大丈夫です。
           あなたの投げかけたひとことが、誰かにとっての新しい見方のきっかけになります。
         </p>
+
+        <div class="about-brand">
+          <img src="assets/miacis-logo.png" width="1200" height="1012" loading="lazy" decoding="async"
+               alt="らしさ、無制限。青少年育成プラザ Miacis">
+          <p>青少年育成プラザ Miacis（ミアキス）<br>山梨県韮崎市。中高生の「第3の居場所」</p>
+        </div>
 
         <div style="margin-top: 28px;">
           <a href="#ask" class="btn btn-primary">問いを書いてみる</a>
