@@ -934,24 +934,58 @@ function renderAbout() {
     <div class="about-container">
       <article class="about-article">
         <h1 id="about-heading" class="about-h1" tabindex="-1">この場所について</h1>
-        
-        <p class="about-p">
-          山梨県韮崎市にある青少年のサードプレイス「青少年育成プラザ Miacis（ミアキス）」の館内にある紙の「問いコーナー」をWebに広げる試みです。
-        </p>
 
+        <h2 class="about-subtitle">Miacis（ミアキス）のこと</h2>
+        <p class="about-p">
+          山梨県韮崎市にある、中高生のための居場所です。学校でも家でもない「第3の居場所」として、
+          放課後に立ち寄って勉強したり、話したり、なにもしないで過ごしたりできます。
+          常駐するスタッフが、日々そこにいます。
+        </p>
+        <div class="about-brand">
+          <img src="assets/miacis-logo.png" width="1200" height="1012" loading="lazy" decoding="async"
+               alt="らしさ、無制限。青少年育成プラザ Miacis">
+          <p>青少年育成プラザ Miacis（ミアキス）<br>山梨県韮崎市</p>
+        </div>
+
+        <h2 class="about-subtitle">館内に、紙の問いコーナーがあります</h2>
+        <p class="about-p">
+          このサイトは、思いつきで始まったものではありません。
+          Miacis の館内には、ホワイトボードにカードを貼っていく「問いコーナー」が実際にあります。
+          中高生が気になっていることを書いて貼ると、スタッフや大学生、地域の大人が
+          それぞれの考えを書いて返す。その往復が、年間100件ほど続いてきました。
+        </p>
+        <figure class="about-figure">
+          <img src="assets/toi-corner-miacis.jpg" width="1200" height="900" loading="lazy" decoding="async"
+               alt="Miacis 館内のホワイトボードに設置された問いコーナー。「にしむの問いコーナー モヤモヤや疑問、なんでも問いてね。」のポスターの下に、問いのカードと大人からの返事のカードが並んで貼られている">
+          <figcaption>館内の問いコーナー。返事は「大学生の回答」「ニシムーの回答」のように、書いた人ごとに並んでいます。</figcaption>
+        </figure>
         <figure class="about-figure">
           <img src="assets/toi-corner-notes.jpg" width="900" height="1273" loading="lazy" decoding="async"
-               alt="館内の問いコーナーに貼られた付箋。「幸せな家庭ってなに？」「人は1人では生きていけないの？」などの手書きの問いが並んでいる">
-          <figcaption>館内の問いコーナーに実際に寄せられた問い。ここから始まりました。</figcaption>
+               alt="問いコーナーに寄せられた付箋。「幸せな家庭ってなに？」「人は1人では生きていけないの？」などの手書きの問いが並んでいる">
+          <figcaption>寄せられた問い。うまく言えていなくても、ひとことでも、そのまま貼られています。</figcaption>
         </figure>
+
+        <h2 class="about-subtitle">紙から、このサイトへ</h2>
+        <p class="about-p">
+          紙のよさは、その場で書けて、誰かの字がそのまま残ることです。
+          でも館内に来ないと読めないし、返事が貼られたことにも気づきにくい。
+          だからこのサイトをつくりました。
+        </p>
+        <p class="about-p">
+          <strong>館内の紙に書いても、このサイトから書いても、どちらでも同じ問いコーナーです。</strong>
+          ここからなら、自分のスマホで、家からでも、名前を出さずに書けます。
+          返事が届いたかどうかも、あとから自分で確かめられます。
+        </p>
 
         <h2 class="about-subtitle">問いは、世界の見方をふやす。</h2>
         <p class="about-p">
-          学校や普段の生活では、「正しい答え」を早く出すことが求められがちです。けれど世の中には、すぐに答えが出ないことや、人によって見え方がまったく違うことがたくさんあります。
+          学校や普段の生活では、「正しい答え」を早く出すことが求められがちです。けれど世の中には、
+          すぐに答えが出ないことや、人によって見え方がまったく違うことがたくさんあります。
         </p>
         <p class="about-p">
           「大人も将来が不安になる？」「ふつうってなんだろう？」<br>
-          そんな素朴な疑問やモヤモヤをここに投げかけると、いろいろな経験をもつ地域の大人たちが、それぞれの視点で返事を持ち寄ります。
+          そんな素朴な疑問やモヤモヤをここに投げかけると、いろいろな経験をもつ地域の大人たちが、
+          それぞれの視点で返事を持ち寄ります。
         </p>
 
         <h2 class="about-subtitle">ひとことでも、まとまっていなくても。</h2>
@@ -959,12 +993,6 @@ function renderAbout() {
           立派な哲学的な問いである必要はありません。一文だけでも、疑問の形になっていなくても大丈夫です。
           あなたの投げかけたひとことが、誰かにとっての新しい見方のきっかけになります。
         </p>
-
-        <div class="about-brand">
-          <img src="assets/miacis-logo.png" width="1200" height="1012" loading="lazy" decoding="async"
-               alt="らしさ、無制限。青少年育成プラザ Miacis">
-          <p>青少年育成プラザ Miacis（ミアキス）<br>山梨県韮崎市。中高生の「第3の居場所」</p>
-        </div>
 
         <div style="margin-top: 28px;">
           <a href="#ask" class="btn btn-primary">問いを書いてみる</a>
