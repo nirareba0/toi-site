@@ -1648,3 +1648,4 @@ body {
 /* 外部から借りた問いの出典 */
 .badge-credit { background: #fff1e2; color: #a2541f; }
 .question-credit { margin-top: 10px; font-size: 0.8125rem; line-height: 1.7; color: var(--color-body-muted, #53647b); }
+.question-credit a { color: var(--color-vivid-blue, #244fc7); }

@@ -343,15 +343,31 @@ export function createInitialState() {
  */
 export const SITE_LINKS = {
   instagram: "https://www.instagram.com/miacis_1009/",   // Miacis の公式アカウント
-  operator: "https://nirareba0.github.io/"              // にしむ（運営者）のサイト
+  operator: "https://nirareba0.github.io/",             // にしむ（運営者）のサイト
+  podcast: "https://podcasts.apple.com/jp/podcast/id1805591539"  // 問いをお借りしたポッドキャスト
 };
+
+/**
+ * 問いの出典（credit）から、その出どころの URL を引く。
+ * 一致しない出典はリンクにしない（推測のリンクを貼らないため）
+ */
+export const CREDIT_LINKS = {
+  "永井玲衣×長井優希乃『Wナガイと哲学対話』（J-WAVE）": "https://podcasts.apple.com/jp/podcast/id1805591539",
+  "NHK Eテレ「Ｑ〜こどものための哲学」": "https://www.nhk.jp/p/q-phil/ts/EQJ8Y1YQJ4/",
+  "永井玲衣『水中の哲学者たち』（晶文社）": "https://www.shobunsha.co.jp/?p=6703"
+};
+
+export function creditLink(credit) {
+  return CREDIT_LINKS[String(credit || "").trim()] || null;
+}
 
 /**
  * 設定されているリンクだけを {key, url, label} の配列で返す
  * @returns {Array<{key: string, url: string, label: string}>}
  */
 export function activeSiteLinks(links = SITE_LINKS) {
-  const label = { instagram: "Miacis の Instagram", operator: "にしむ（運営者）のサイト" };
+  const label = { instagram: "Miacis の Instagram", operator: "にしむ（運営者）のサイト",
+                  podcast: "『Wナガイと哲学対話』（問いをお借りした番組）" };
   return Object.entries(links)
     .filter(([, url]) => typeof url === "string" && /^https:\/\//.test(url.trim()))
     .map(([key, url]) => ({ key, url: url.trim(), label: label[key] ?? key }));

@@ -12,6 +12,7 @@ import {
   validateQuestionDraft,
   countCharacters,
   truncateForDisplay,
+  creditLink,
   activeSiteLinks,
   getPromptHint,
   resolveRoute,
@@ -889,7 +890,11 @@ async function renderDetail(questionId) {
         <div class="question-sheet-author">
           投稿者: <strong>${escapeHtml(question.nickname || DEFAULT_NICKNAME)}</strong>
         </div>
-        ${question.credit ? `<div class="question-credit">この問いは ${escapeHtml(question.credit)} のエピソードタイトルからお借りしました。</div>` : ""}
+        ${question.credit ? (() => {
+          const href = creditLink(question.credit);
+          const name = escapeHtml(question.credit);
+          return `<div class="question-credit">この問いは ${href ? `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${name}</a>` : name} からお借りしました。返事はこのサイトの大人が書いたもので、出典元とは関係ありません。</div>`;
+        })() : ""}
       </article>
 
       <!-- 届いている大人の返事セクション (立場のみ表示、氏名・ニックネームは非表示) -->

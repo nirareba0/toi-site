@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>問いコーナー スクエアカード（A4 に 6 枚）</title><style>
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><title>問いコーナー スクエアカード</title><style>
   @page { size: A4; margin: 0; }
   html,body{margin:0;background:#fff}
   body{font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;-webkit-font-smoothing:antialiased;color:#203047}
@@ -6,10 +6,14 @@
          grid-template-columns:90mm 90mm;grid-template-rows:90mm 90mm 90mm;
          justify-content:center;align-content:center}
   .card{position:relative;width:90mm;height:90mm;box-sizing:border-box;padding:10mm 9mm 8mm;
-        background:var(--bg);display:flex;flex-direction:column;outline:0.2mm dashed #c2c2c2}
-  .lead{font-size:9.5pt;font-weight:700;color:#244fc7;letter-spacing:.02em}
-  .q{margin:4.5mm 0 0;font-weight:800;line-height:1.5;letter-spacing:.01em}
-  .foot{margin-top:auto;padding-bottom:4mm;display:flex;align-items:flex-end;justify-content:space-between;gap:4mm}
+        background:var(--bg);display:flex;flex-direction:column;outline:.2mm dashed #c2c2c2}
+  .lead{font-size:9.5pt;font-weight:700;color:#244fc7;letter-spacing:.02em;line-height:1.5}
+  /* 問い: 収まる最大の級数を実測で決める。行頭に句読点や閉じ括弧を送らない */
+  .qwrap{height:46mm;display:flex;align-items:center;overflow:hidden}
+  /* BudouX が入れた <wbr> の位置だけで折る。単語の途中では折らない */
+  .q{margin:0;font-weight:800;line-height:1.55;letter-spacing:.005em;
+     line-break:strict;word-break:keep-all;overflow-wrap:break-word;text-wrap:pretty}
+  .foot{margin-top:auto;display:flex;align-items:flex-end;justify-content:space-between;gap:4mm;padding-bottom:4mm}
   .meta{font-size:7pt;line-height:1.7;color:#4a5b71}
   .meta .ans{display:block;margin-top:.8mm;color:#6b7c93}
   .qrbox{flex:none;background:#fff;padding:2mm;border-radius:1.5mm}
@@ -18,7 +22,7 @@
 </style></head><body><div class="sheet">
   <div class="card" style="--bg:#fff184">
     <div class="lead">まじめに考えてみない？</div>
-    <p class="q" style="font-size:18pt">なんで人間はペンギンより偉いの？</p>
+    <div class="qwrap"><p class="q" data-i="0" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">なんで​人間は​ペンギンより​偉いの？</span></p></div>
     <div class="foot">
       <div class="meta">Miacis の問いコーナーに届いた問い<span class="ans">1 人の大人が答えています</span></div>
       <div class="qrbox"><img class="qr" src="qr/1e6a031900.svg" alt="この問いのページの QR"></div>
@@ -27,7 +31,7 @@
   </div>
   <div class="card" style="--bg:#ffd9e4">
     <div class="lead">ちょっと考えてみない？</div>
-    <p class="q" style="font-size:21pt">「死」は怖いですか？</p>
+    <div class="qwrap"><p class="q" data-i="1" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">「死」は​怖いですか？</span></p></div>
     <div class="foot">
       <div class="meta">Miacis の問いコーナーに届いた問い<span class="ans">1 人の大人が答えています</span></div>
       <div class="qrbox"><img class="qr" src="qr/3a4ab1d100.svg" alt="この問いのページの QR"></div>
@@ -35,8 +39,8 @@
     <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
   </div>
   <div class="card" style="--bg:#cfe6ff">
-    <div class="lead">答えなくていいから、考えてみない？</div>
-    <p class="q" style="font-size:15.5pt">勝ち負けは何であるの？何で順位をつけたがるの？</p>
+    <div class="lead">答えを出さなくていいから、考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="2" style="font-size:20pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">勝ち負けは​何であるの？​何で​順位を​つけたがるの？</span></p></div>
     <div class="foot">
       <div class="meta">Miacis の問いコーナーに届いた問い<span class="ans">1 人の大人が答えています</span></div>
       <div class="qrbox"><img class="qr" src="qr/97ec51e500.svg" alt="この問いのページの QR"></div>
@@ -45,7 +49,7 @@
   </div>
   <div class="card" style="--bg:#fff6e8">
     <div class="lead">まじめに考えてみない？</div>
-    <p class="q" style="font-size:18pt">自分らしく生きるとはなんでしょうか？</p>
+    <div class="qwrap"><p class="q" data-i="3" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">自分らしく​生きるとは​なんでしょうか？</span></p></div>
     <div class="foot">
       <div class="meta">Miacis の問いコーナーに届いた問い<span class="ans">1 人の大人が答えています</span></div>
       <div class="qrbox"><img class="qr" src="qr/ec1cf0b600.svg" alt="この問いのページの QR"></div>
@@ -53,74 +57,182 @@
     <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
   </div>
   <div class="card" style="--bg:#e6f4e8">
-    <div class="lead">まじめに考えてみない？</div>
-    <p class="q" style="font-size:21pt">切った爪はゴミなのか</p>
+    <div class="lead">ちょっと考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="4" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">健康って​何だろう？</span></p></div>
     <div class="foot">
-      <div class="meta">問い：『Wナガイと哲学対話』より<span class="ans">まだ誰も答えていません</span></div>
-      <div class="qrbox"><img class="qr" src="qr/8e5a8731d7.svg" alt="この問いのページの QR"></div>
+      <div class="meta">Miacis の問いコーナーに届いた問い<span class="ans">2 人の大人が答えています</span></div>
+      <div class="qrbox"><img class="qr" src="qr/c220a5ae00.svg" alt="この問いのページの QR"></div>
     </div>
     <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
   </div>
   <div class="card" style="--bg:#ffe9c9">
-    <div class="lead">ちょっと考えてみない？</div>
-    <p class="q" style="font-size:15.5pt">レトルトカレーを温めるのは自炊なのか？</p>
+    <div class="lead">答えを出さなくていいから、考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="5" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">人を​バカに​するってなに？​どう​いう​こと？</span></p></div>
     <div class="foot">
-      <div class="meta">問い：『Wナガイと哲学対話』より<span class="ans">まだ誰も答えていません</span></div>
-      <div class="qrbox"><img class="qr" src="qr/772126cec7.svg" alt="この問いのページの QR"></div>
+      <div class="meta">Miacis の問いコーナーに届いた問い<span class="ans">1 人の大人が答えています</span></div>
+      <div class="qrbox"><img class="qr" src="qr/91c1198500.svg" alt="この問いのページの QR"></div>
     </div>
     <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
   </div></div><div class="sheet">
-  <div class="card" style="--bg:#f0e6ff">
-    <div class="lead">答えなくていいから、考えてみない？</div>
-    <p class="q" style="font-size:18pt">なぜ人は端っこの席に座るのか</p>
-    <div class="foot">
-      <div class="meta">問い：『Wナガイと哲学対話』より<span class="ans">まだ誰も答えていません</span></div>
-      <div class="qrbox"><img class="qr" src="qr/5bf7ff6e5f.svg" alt="この問いのページの QR"></div>
-    </div>
-    <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
-  </div>
-  <div class="card" style="--bg:#d9f2ef">
-    <div class="lead">まじめに考えてみない？</div>
-    <p class="q" style="font-size:15.5pt">鼻歌を人に聞かれるとなぜ恥ずかしいのか</p>
-    <div class="foot">
-      <div class="meta">問い：『Wナガイと哲学対話』より<span class="ans">まだ誰も答えていません</span></div>
-      <div class="qrbox"><img class="qr" src="qr/3ea8443528.svg" alt="この問いのページの QR"></div>
-    </div>
-    <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
-  </div>
   <div class="card" style="--bg:#fff184">
     <div class="lead">まじめに考えてみない？</div>
-    <p class="q" style="font-size:15.5pt">なぜ猫はかわいくて、ゴキブリはかわいくないのか？</p>
+    <div class="qwrap"><p class="q" data-i="6" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">切った​爪は​ゴミなのか</span></p></div>
     <div class="foot">
-      <div class="meta">問い：『Wナガイと哲学対話』より<span class="ans">まだ誰も答えていません</span></div>
-      <div class="qrbox"><img class="qr" src="qr/bc4e1ac393.svg" alt="この問いのページの QR"></div>
+      <div class="meta">問い：永井玲衣×長井優希乃『Wナガイと哲学対話』（J-WAVE）<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/8e5a8731d7.svg" alt="この問いのページの QR"></div>
     </div>
     <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
   </div>
   <div class="card" style="--bg:#ffd9e4">
     <div class="lead">ちょっと考えてみない？</div>
-    <p class="q" style="font-size:21pt">「素顔」とは何か</p>
+    <div class="qwrap"><p class="q" data-i="7" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">レトルトカレーを​温めるのは​自炊なのか？</span></p></div>
     <div class="foot">
-      <div class="meta">問い：『Wナガイと哲学対話』より<span class="ans">まだ誰も答えていません</span></div>
-      <div class="qrbox"><img class="qr" src="qr/7448af0dc7.svg" alt="この問いのページの QR"></div>
+      <div class="meta">問い：永井玲衣×長井優希乃『Wナガイと哲学対話』（J-WAVE）<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/772126cec7.svg" alt="この問いのページの QR"></div>
     </div>
     <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
   </div>
   <div class="card" style="--bg:#cfe6ff">
-    <div class="lead">答えなくていいから、考えてみない？</div>
-    <p class="q" style="font-size:18pt">夢が叶うってどういうこと？</p>
+    <div class="lead">答えを出さなくていいから、考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="8" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">な​ぜ人は​端っこの​席に​座るのか</span></p></div>
     <div class="foot">
-      <div class="meta">問い：『Wナガイと哲学対話』より<span class="ans">まだ誰も答えていません</span></div>
-      <div class="qrbox"><img class="qr" src="qr/3377fe33c9.svg" alt="この問いのページの QR"></div>
+      <div class="meta">問い：永井玲衣×長井優希乃『Wナガイと哲学対話』（J-WAVE）<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/5bf7ff6e5f.svg" alt="この問いのページの QR"></div>
     </div>
     <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
   </div>
   <div class="card" style="--bg:#fff6e8">
     <div class="lead">まじめに考えてみない？</div>
-    <p class="q" style="font-size:15.5pt">かさぶたをはがしたくなっちゃうのはどうしてだろう</p>
+    <div class="qwrap"><p class="q" data-i="9" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">鼻歌を​人に​聞かれるとなぜ​恥ずかしいのか</span></p></div>
     <div class="foot">
-      <div class="meta">問い：『Wナガイと哲学対話』より<span class="ans">まだ誰も答えていません</span></div>
+      <div class="meta">問い：永井玲衣×長井優希乃『Wナガイと哲学対話』（J-WAVE）<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/3ea8443528.svg" alt="この問いのページの QR"></div>
+    </div>
+    <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
+  </div>
+  <div class="card" style="--bg:#e6f4e8">
+    <div class="lead">ちょっと考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="10" style="font-size:20pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">な​ぜ猫は​かわいくて、​ゴキブリは​かわいくないのか？</span></p></div>
+    <div class="foot">
+      <div class="meta">問い：永井玲衣×長井優希乃『Wナガイと哲学対話』（J-WAVE）<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/bc4e1ac393.svg" alt="この問いのページの QR"></div>
+    </div>
+    <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
+  </div>
+  <div class="card" style="--bg:#ffe9c9">
+    <div class="lead">答えを出さなくていいから、考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="11" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">「素顔」とは​何か</span></p></div>
+    <div class="foot">
+      <div class="meta">問い：永井玲衣×長井優希乃『Wナガイと哲学対話』（J-WAVE）<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/7448af0dc7.svg" alt="この問いのページの QR"></div>
+    </div>
+    <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
+  </div></div><div class="sheet">
+  <div class="card" style="--bg:#fff184">
+    <div class="lead">まじめに考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="12" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">夢が​叶うって​どういう​こと？</span></p></div>
+    <div class="foot">
+      <div class="meta">問い：永井玲衣×長井優希乃『Wナガイと哲学対話』（J-WAVE）<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/3377fe33c9.svg" alt="この問いのページの QR"></div>
+    </div>
+    <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
+  </div>
+  <div class="card" style="--bg:#ffd9e4">
+    <div class="lead">ちょっと考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="13" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">かさぶたを​はが​したくなっちゃうのは​どうしてだろう</span></p></div>
+    <div class="foot">
+      <div class="meta">問い：永井玲衣×長井優希乃『Wナガイと哲学対話』（J-WAVE）<span class="ans">まだ誰も答えていません</span></div>
       <div class="qrbox"><img class="qr" src="qr/0be95ed752.svg" alt="この問いのページの QR"></div>
+    </div>
+    <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
+  </div>
+  <div class="card" style="--bg:#cfe6ff">
+    <div class="lead">答えを出さなくていいから、考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="14" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">なんで​夜は​こわいの？</span></p></div>
+    <div class="foot">
+      <div class="meta">問い：NHK Eテレ「Ｑ〜こどものための哲学」<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/f33a81a79b.svg" alt="この問いのページの QR"></div>
+    </div>
+    <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
+  </div>
+  <div class="card" style="--bg:#fff6e8">
+    <div class="lead">まじめに考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="15" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">とも​だちって​たくさん​必要？</span></p></div>
+    <div class="foot">
+      <div class="meta">問い：NHK Eテレ「Ｑ〜こどものための哲学」<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/57c2861a22.svg" alt="この問いのページの QR"></div>
+    </div>
+    <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
+  </div>
+  <div class="card" style="--bg:#e6f4e8">
+    <div class="lead">ちょっと考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="16" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">便利って​本当に​いいこと？</span></p></div>
+    <div class="foot">
+      <div class="meta">問い：NHK Eテレ「Ｑ〜こどものための哲学」<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/0db4b36da7.svg" alt="この問いのページの QR"></div>
+    </div>
+    <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
+  </div>
+  <div class="card" style="--bg:#ffe9c9">
+    <div class="lead">答えを出さなくていいから、考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="17" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">ルールって​本当に​必要？</span></p></div>
+    <div class="foot">
+      <div class="meta">問い：NHK Eテレ「Ｑ〜こどものための哲学」<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/84880fdf3f.svg" alt="この問いのページの QR"></div>
+    </div>
+    <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
+  </div></div><div class="sheet">
+  <div class="card" style="--bg:#fff184">
+    <div class="lead">まじめに考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="18" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">大人って​どんな​人？</span></p></div>
+    <div class="foot">
+      <div class="meta">問い：NHK Eテレ「Ｑ〜こどものための哲学」<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/11a3e1dca0.svg" alt="この問いのページの QR"></div>
+    </div>
+    <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
+  </div>
+  <div class="card" style="--bg:#ffd9e4">
+    <div class="lead">ちょっと考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="19" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">なんで​ひとは​独り言を​言うんだろう？</span></p></div>
+    <div class="foot">
+      <div class="meta">問い：永井玲衣『水中の哲学者たち』（晶文社）<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/b200703060.svg" alt="この問いのページの QR"></div>
+    </div>
+    <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
+  </div>
+  <div class="card" style="--bg:#cfe6ff">
+    <div class="lead">答えを出さなくていいから、考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="20" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">将来の​夢って​持たなきゃだめ？</span></p></div>
+    <div class="foot">
+      <div class="meta">問い：永井玲衣『水中の哲学者たち』（晶文社）<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/8b099faec0.svg" alt="この問いのページの QR"></div>
+    </div>
+    <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
+  </div>
+  <div class="card" style="--bg:#fff6e8">
+    <div class="lead">まじめに考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="21" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">お金で​本当に​幸せに​なれる？</span></p></div>
+    <div class="foot">
+      <div class="meta">問い：NHK Eテレ「Ｑ〜こどものための哲学」<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/957612656e.svg" alt="この問いのページの QR"></div>
+    </div>
+    <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
+  </div>
+  <div class="card" style="--bg:#e6f4e8">
+    <div class="lead">ちょっと考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="22" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">なんであだ名を​つけたがるの？</span></p></div>
+    <div class="foot">
+      <div class="meta">問い：NHK Eテレ「Ｑ〜こどものための哲学」<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/5caad54659.svg" alt="この問いのページの QR"></div>
+    </div>
+    <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
+  </div>
+  <div class="card" style="--bg:#ffe9c9">
+    <div class="lead">答えを出さなくていいから、考えてみない？</div>
+    <div class="qwrap"><p class="q" data-i="23" style="font-size:22pt"><span style="word-break: keep-all; overflow-wrap: anywhere;">良い​こと、​悪い​ことってなに？</span></p></div>
+    <div class="foot">
+      <div class="meta">問い：NHK Eテレ「Ｑ〜こどものための哲学」<span class="ans">まだ誰も答えていません</span></div>
+      <div class="qrbox"><img class="qr" src="qr/f3097588ea.svg" alt="この問いのページの QR"></div>
     </div>
     <div class="brand">Miacis 問いコーナー ／ 韮崎市</div>
   </div></div></body></html>

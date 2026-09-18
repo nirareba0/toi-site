@@ -21,7 +21,19 @@
 
 ## スクエアカード（A4 に 6 枚）
 
-`cards.html` → `cards.pdf`。90mm 角のカードを 2×3 で 2 シート、計 12 枚。破線で切って各所に貼る想定。
+```sh
+node print/build-cards.mjs        # cards.json → cards.html（組版）
+"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --disable-gpu \
+  --no-pdf-header-footer --print-to-pdf=print/cards.pdf "file://$PWD/print/cards.html"
+```
+
+90mm 角のカードを 2×3 で 4 シート、計 24 枚。破線で切って各所に貼る想定。
+
+**組版は手で決めない。** `build-cards.mjs` がヘッドレスブラウザで実測し、
+(1) BudouX（`print/vendor/budoux-ja.min.js`、Apache-2.0）で日本語を文節に分け、折ってよい位置にだけ
+`<wbr>` を入れる（「ペンギンよ／り偉いの？」のような切れ方を防ぐ）
+(2) その状態で枠に収まる最大の級数を 0.5pt 刻みで探す
+という順で決める。問いを入れ替えても字面が崩れない。
 
 - **QR はカードごとに、その問いの詳細ページへ直接飛ぶ**（`#question/<id>`）。読んだ人がその場で
   大人の返事を読めるので、「考えてみない？」から「他の人はこう考えた」までが一息でつながる

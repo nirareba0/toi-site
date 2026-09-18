@@ -1,7 +1,6 @@
 [
  {
   "body": "なんで人間はペンギンより偉いの？",
-  "kind": "miacis",
   "url": "https://nirareba0.github.io/toi-site/#question/1e6a0319-0000-4000-8000-f40314190000",
   "qr": "qr/1e6a031900.svg",
   "answers": 1,
@@ -9,7 +8,6 @@
  },
  {
   "body": "「死」は怖いですか？",
-  "kind": "miacis",
   "url": "https://nirareba0.github.io/toi-site/#question/3a4ab1d1-0000-4000-8000-50c373720000",
   "qr": "qr/3a4ab1d100.svg",
   "answers": 1,
@@ -17,7 +15,6 @@
  },
  {
   "body": "勝ち負けは何であるの？何で順位をつけたがるの？",
-  "kind": "miacis",
   "url": "https://nirareba0.github.io/toi-site/#question/97ec51e5-0000-4000-8000-9ce91f0a0000",
   "qr": "qr/97ec51e500.svg",
   "answers": 1,
@@ -25,15 +22,27 @@
  },
  {
   "body": "自分らしく生きるとはなんでしょうか？",
-  "kind": "miacis",
   "url": "https://nirareba0.github.io/toi-site/#question/ec1cf0b6-0000-4000-8000-f5d8f9740000",
   "qr": "qr/ec1cf0b600.svg",
   "answers": 1,
   "credit": null
  },
  {
+  "body": "健康って何だろう？",
+  "url": "https://nirareba0.github.io/toi-site/#question/c220a5ae-0000-4000-8000-c40f28440000",
+  "qr": "qr/c220a5ae00.svg",
+  "answers": 2,
+  "credit": null
+ },
+ {
+  "body": "人をバカにするってなに？どういうこと？",
+  "url": "https://nirareba0.github.io/toi-site/#question/91c11985-0000-4000-8000-b6e742550000",
+  "qr": "qr/91c1198500.svg",
+  "answers": 1,
+  "credit": null
+ },
+ {
   "body": "切った爪はゴミなのか",
-  "kind": "podcast",
   "url": "https://nirareba0.github.io/toi-site/#question/8e5a8731-d7f3-4ce3-900a-94c87f3d0214",
   "qr": "qr/8e5a8731d7.svg",
   "answers": 0,
@@ -41,7 +50,6 @@
  },
  {
   "body": "レトルトカレーを温めるのは自炊なのか？",
-  "kind": "podcast",
   "url": "https://nirareba0.github.io/toi-site/#question/772126ce-c7b4-4391-a6c4-719e7ba85b42",
   "qr": "qr/772126cec7.svg",
   "answers": 0,
@@ -49,7 +57,6 @@
  },
  {
   "body": "なぜ人は端っこの席に座るのか",
-  "kind": "podcast",
   "url": "https://nirareba0.github.io/toi-site/#question/5bf7ff6e-5f2e-438c-98e9-b83b25790d2a",
   "qr": "qr/5bf7ff6e5f.svg",
   "answers": 0,
@@ -57,7 +64,6 @@
  },
  {
   "body": "鼻歌を人に聞かれるとなぜ恥ずかしいのか",
-  "kind": "podcast",
   "url": "https://nirareba0.github.io/toi-site/#question/3ea84435-2884-417b-a850-0baee5ad68b8",
   "qr": "qr/3ea8443528.svg",
   "answers": 0,
@@ -65,7 +71,6 @@
  },
  {
   "body": "なぜ猫はかわいくて、ゴキブリはかわいくないのか？",
-  "kind": "podcast",
   "url": "https://nirareba0.github.io/toi-site/#question/bc4e1ac3-93db-4cde-bce3-143a43f08cbc",
   "qr": "qr/bc4e1ac393.svg",
   "answers": 0,
@@ -73,7 +78,6 @@
  },
  {
   "body": "「素顔」とは何か",
-  "kind": "podcast",
   "url": "https://nirareba0.github.io/toi-site/#question/7448af0d-c7b4-4a2a-be18-4376f8aa51cf",
   "qr": "qr/7448af0dc7.svg",
   "answers": 0,
@@ -81,7 +85,6 @@
  },
  {
   "body": "夢が叶うってどういうこと？",
-  "kind": "podcast",
   "url": "https://nirareba0.github.io/toi-site/#question/3377fe33-c994-4d5e-89eb-78672573cc89",
   "qr": "qr/3377fe33c9.svg",
   "answers": 0,
@@ -89,10 +92,79 @@
  },
  {
   "body": "かさぶたをはがしたくなっちゃうのはどうしてだろう",
-  "kind": "podcast",
   "url": "https://nirareba0.github.io/toi-site/#question/0be95ed7-52f7-4f2c-9511-376716898388",
   "qr": "qr/0be95ed752.svg",
   "answers": 0,
   "credit": "永井玲衣×長井優希乃『Wナガイと哲学対話』（J-WAVE）"
+ },
+ {
+  "body": "なんで夜はこわいの？",
+  "url": "https://nirareba0.github.io/toi-site/#question/f33a81a7-9bed-49fc-acd7-40637a3ee4ba",
+  "qr": "qr/f33a81a79b.svg",
+  "answers": 0,
+  "credit": "NHK Eテレ「Ｑ〜こどものための哲学」"
+ },
+ {
+  "body": "ともだちってたくさん必要？",
+  "url": "https://nirareba0.github.io/toi-site/#question/57c2861a-222e-41a2-a42d-e952b6bdca92",
+  "qr": "qr/57c2861a22.svg",
+  "answers": 0,
+  "credit": "NHK Eテレ「Ｑ〜こどものための哲学」"
+ },
+ {
+  "body": "便利って本当にいいこと？",
+  "url": "https://nirareba0.github.io/toi-site/#question/0db4b36d-a789-42a9-a944-d5277b632de9",
+  "qr": "qr/0db4b36da7.svg",
+  "answers": 0,
+  "credit": "NHK Eテレ「Ｑ〜こどものための哲学」"
+ },
+ {
+  "body": "ルールって本当に必要？",
+  "url": "https://nirareba0.github.io/toi-site/#question/84880fdf-3f7a-4eb3-a1ae-5d44011ca189",
+  "qr": "qr/84880fdf3f.svg",
+  "answers": 0,
+  "credit": "NHK Eテレ「Ｑ〜こどものための哲学」"
+ },
+ {
+  "body": "大人ってどんな人？",
+  "url": "https://nirareba0.github.io/toi-site/#question/11a3e1dc-a0c6-4ee1-8b8d-33b71601fbda",
+  "qr": "qr/11a3e1dca0.svg",
+  "answers": 0,
+  "credit": "NHK Eテレ「Ｑ〜こどものための哲学」"
+ },
+ {
+  "body": "なんでひとは独り言を言うんだろう？",
+  "url": "https://nirareba0.github.io/toi-site/#question/b2007030-60d3-4df7-8890-547247427353",
+  "qr": "qr/b200703060.svg",
+  "answers": 0,
+  "credit": "永井玲衣『水中の哲学者たち』（晶文社）"
+ },
+ {
+  "body": "将来の夢って持たなきゃだめ？",
+  "url": "https://nirareba0.github.io/toi-site/#question/8b099fae-c0fc-429e-b205-cebe7b607a35",
+  "qr": "qr/8b099faec0.svg",
+  "answers": 0,
+  "credit": "永井玲衣『水中の哲学者たち』（晶文社）"
+ },
+ {
+  "body": "お金で本当に幸せになれる？",
+  "url": "https://nirareba0.github.io/toi-site/#question/95761265-6efe-45eb-bcf2-a54a55abf881",
+  "qr": "qr/957612656e.svg",
+  "answers": 0,
+  "credit": "NHK Eテレ「Ｑ〜こどものための哲学」"
+ },
+ {
+  "body": "なんであだ名をつけたがるの？",
+  "url": "https://nirareba0.github.io/toi-site/#question/5caad546-59d8-4dab-be4c-152cfffb31a0",
+  "qr": "qr/5caad54659.svg",
+  "answers": 0,
+  "credit": "NHK Eテレ「Ｑ〜こどものための哲学」"
+ },
+ {
+  "body": "良いこと、悪いことってなに？",
+  "url": "https://nirareba0.github.io/toi-site/#question/f3097588-ea10-4a2d-8a63-ff0c0e7c2098",
+  "qr": "qr/f3097588ea.svg",
+  "answers": 0,
+  "credit": "NHK Eテレ「Ｑ〜こどものための哲学」"
  }
 ]
