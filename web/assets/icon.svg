@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Miacis 問いコーナー">
+  <!-- サイトのヘッダーと同じモチーフ: 重なる2枚の紙片と、手前の紙に問い -->
+  <rect width="64" height="64" rx="14" fill="#244fc7"/>
+  <rect x="13" y="17.5" width="30" height="34" rx="4.5" fill="#cfe0ff"/>
+  <rect x="21" y="10.5" width="30" height="34" rx="4.5" fill="#ffffff"/>
+  <path d="M30.8 24.6a5.4 5.4 0 1 1 8.4 4.5c-2.3 1.5-3.2 2.7-3.2 5.3" fill="none" stroke="#244fc7" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="36" cy="40.2" r="2.1" fill="#244fc7"/>
+</svg>

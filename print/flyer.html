@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Miacis 問いコーナー — 館内チラシ A4</title>
+<style>
+  @page { size: A4; margin: 0; }
+  @font-face { font-family: "Plex Mono"; src: url("fonts/IBMPlexMono-Regular.ttf"); }
+  :root {
+    --blue: #244fc7; --ink: #203047; --muted: #53647b;
+    --pale: #edf5ff; --pale2: #f5f9ff; --line: #d4e3f5;
+    --yellow: #fff184; --pink: #ffd4e0; --sky: #cfe6ff; --cream: #fff6c8;
+  }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  body { font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif; color: var(--ink);
+         -webkit-font-smoothing: antialiased; }
+  .page { position: relative; width: 210mm; height: 297mm; overflow: hidden; background: #fff; }
+  .mono { font-family: "Plex Mono", monospace; letter-spacing: 0.01em; }
+
+  /* 上の帯 */
+  .top { position: absolute; top: 13mm; left: 16mm; right: 16mm; display: flex; justify-content: space-between; align-items: center;
+         font-size: 9.5pt; color: var(--muted); }
+  .top .place { display: flex; align-items: center; gap: 2.6mm; font-weight: 600; color: var(--ink); }
+  .top .place .dot { width: 3.2mm; height: 3.2mm; border-radius: 1mm; background: var(--blue); }
+
+  /* 見出し */
+  .hero { position: absolute; top: 30mm; left: 16mm; right: 16mm; }
+  .hero h1 { margin: 0; font-size: 39pt; line-height: 1.18; font-weight: 800; letter-spacing: 0.01em; }
+  .hero h1 span { display: block; }
+  .hero p { margin: 6mm 0 0; font-size: 13pt; font-weight: 600; color: var(--blue); }
+  .hero small { display: block; margin-top: 2.5mm; font-size: 10pt; color: var(--muted); font-weight: 400; line-height: 1.7; }
+
+  /* 掲示板 */
+  .board { position: absolute; top: 92mm; left: 16mm; width: 178mm; height: 88mm;
+           background: var(--pale2); border: 0.4mm solid var(--line); border-radius: 4mm; }
+  .note { position: absolute; width: 46mm; padding: 5mm 5.5mm; border-radius: 1mm; font-size: 12.5pt; font-weight: 700; line-height: 1.45;
+          border: 0.35mm solid rgba(32,48,71,.10); }
+  .note::before { content: ""; position: absolute; top: -2.2mm; left: 50%; width: 4.4mm; height: 4.4mm; margin-left: -2.2mm; border-radius: 50%;
+                  background: #fff; border: 0.5mm solid var(--blue); box-sizing: border-box; }
+  .n1 { left: 8mm;  top: 10mm; background: var(--yellow); transform: rotate(-2deg); }
+  .n2 { left: 60mm; top: 8mm;  background: var(--pink);   transform: rotate(1.5deg); }
+  .n3 { left: 8mm;  top: 50mm; background: var(--sky);    transform: rotate(1deg); }
+  .n4 { left: 60mm; top: 48mm; background: var(--cream);  transform: rotate(-1.2deg); }
+  .reply { position: absolute; left: 120mm; top: 20mm; width: 42mm; padding: 5mm 5.5mm 5.5mm; background: #fff; border: 0.4mm solid var(--line);
+           border-radius: 2.5mm; font-size: 9.5pt; line-height: 1.75; color: var(--ink); }
+  .reply .tag { display: inline-block; font-size: 7.5pt; font-weight: 700; color: var(--blue); background: var(--pale);
+                padding: 0.8mm 2.4mm; border-radius: 10mm; margin-bottom: 2.4mm; }
+  .reply .arrow { position: absolute; left: -9mm; top: 8mm; width: 6mm; height: 6mm; }
+  .board .label { position: absolute; right: 8mm; bottom: 6mm; font-size: 8.5pt; color: var(--muted); }
+
+  /* 手順 */
+  .steps { position: absolute; top: 190mm; left: 16mm; width: 178mm; display: flex; gap: 8mm; }
+  .step { flex: 1; display: flex; gap: 3.5mm; align-items: flex-start; }
+  .step .num { flex: none; width: 8.5mm; height: 8.5mm; border-radius: 50%; background: var(--blue); color: #fff; font-weight: 800; font-size: 11pt;
+               display: flex; align-items: center; justify-content: center; }
+  .step h3 { margin: 0.6mm 0 1.2mm; font-size: 12pt; font-weight: 800; }
+  .step p { margin: 0; font-size: 9pt; line-height: 1.65; color: var(--muted); }
+
+  /* 下段 */
+  .bottom { position: absolute; top: 224mm; left: 16mm; right: 16mm; height: 56mm; display: flex; align-items: center; gap: 10mm; }
+  .qr { flex: none; display: flex; align-items: center; gap: 7mm; }
+  .qr img { width: 46mm; height: 46mm; display: block; }
+  .qr .lead { font-size: 13pt; font-weight: 800; line-height: 1.4; }
+  .qr .url { margin-top: 2.5mm; font-size: 9pt; color: var(--blue); }
+  .qr .hint { margin-top: 2.5mm; font-size: 8.5pt; color: var(--muted); line-height: 1.6; }
+  .brand { margin-left: auto; text-align: right; }
+  .brand img { width: 30mm; height: auto; display: inline-block; }
+  .brand p { margin: 2.5mm 0 0; font-size: 8.5pt; color: var(--muted); line-height: 1.7; }
+  .brand .ig { font-weight: 700; color: var(--ink); }
+
+  .foot { position: absolute; left: 16mm; right: 16mm; bottom: 11mm; padding-top: 3mm; border-top: 0.3mm solid var(--line);
+          font-size: 8pt; color: var(--muted); display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="top">
+    <div class="place"><span class="dot"></span>青少年育成プラザ Miacis（ミアキス）</div>
+    <div>館内の紙の問いコーナーが、スマホでも書けるようになりました</div>
+  </div>
+
+  <div class="hero">
+    <h1><span>問いは、</span><span>世界の見方をふやす。</span></h1>
+    <p>モヤモヤや疑問、なんでも問いてね。</p>
+    <small>中高生が問いを書くと、スタッフや大学生、地域の大人が、それぞれの考えを書いて返します。<br>
+    答えがひとつに決まらなくても、そこから見えてくるものがある。</small>
+  </div>
+
+  <div class="board" aria-hidden="true">
+    <div class="note n1">幸せって何？</div>
+    <div class="note n2">なんで人間はペンギンより偉いの？</div>
+    <div class="note n3">勉強ってなんでしないといけないの？</div>
+    <div class="note n4">愛ってなんですか</div>
+    <div class="reply">
+      <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="#244fc7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      <span class="tag">Miacis のスタッフ</span>
+      人間がペンギンより偉いと思ったことがなかったので、視点が独特でめちゃくちゃ面白い良い問いですね。
+    </div>
+    <div class="label">実際に寄せられた問いと、届いた返事</div>
+  </div>
+
+  <div class="steps">
+    <div class="step"><div class="num">1</div><div><h3>QR を読む</h3><p>カメラでかざすだけ。<br>登録はいりません。</p></div></div>
+    <div class="step"><div class="num">2</div><div><h3>問いを書く</h3><p>名前はいりません。<br>一文でも大丈夫。</p></div></div>
+    <div class="step"><div class="num">3</div><div><h3>返事が届く</h3><p>スタッフが確認して公開。<br>あとから見に行けます。</p></div></div>
+  </div>
+
+  <div class="bottom">
+    <div class="qr">
+      <img src="qr-site.svg" alt="サイトの QR コード">
+      <div>
+        <div class="lead">スマホで、<br>ここから書けます。</div>
+        <div class="url mono">nirareba0.github.io/toi-site</div>
+        <div class="hint">館内の紙のカードに書いても、<br>同じ問いコーナーです。</div>
+      </div>
+    </div>
+    <div class="brand">
+      <img src="miacis-logo.png" alt="Miacis">
+      <p>Miacis のふだんの様子は Instagram で<br><span class="ig mono">@miacis_1009</span></p>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span>本名・学校名・連絡先など、誰かが特定される内容は書かないでください。</span>
+    <span>山梨県韮崎市 青少年育成プラザ Miacis 問いコーナー</span>
+  </div>
+
+</div>
+</body>
+</html>
