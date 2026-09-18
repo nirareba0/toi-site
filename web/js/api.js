@@ -84,7 +84,7 @@ export async function listQuestions({ theme = null, limit = 50 } = {}) {
   if (!sb) return [];
   let query = sb
     .from("public_questions")
-    .select("id, body, nickname, theme_id, theme_label, source, created_at, answer_count")
+    .select("id, body, nickname, theme_id, theme_label, credit, source, created_at, answer_count")
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -111,7 +111,7 @@ export async function getQuestion(id) {
   const [{ data: question, error: errQ }, { data: answers, error: errA }] = await Promise.all([
     sb
       .from("public_questions")
-      .select("id, body, nickname, theme_id, theme_label, source, created_at, answer_count")
+      .select("id, body, nickname, theme_id, theme_label, credit, source, created_at, answer_count")
       .eq("id", id)
       .maybeSingle(),
     sb
@@ -143,7 +143,7 @@ export async function getPublicQuestionsByIds(ids = []) {
   if (!sb || !ids || ids.length === 0) return [];
   const { data, error } = await sb
     .from("public_questions")
-    .select("id, body, nickname, theme_id, theme_label, created_at, answer_count")
+    .select("id, body, nickname, theme_id, theme_label, credit, created_at, answer_count")
     .in("id", ids);
 
   if (error) {

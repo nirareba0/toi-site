@@ -17,7 +17,8 @@ create table if not exists questions (
   nickname      text check (char_length(nickname) <= 20),   -- 任意。空なら「だれか」
   theme_id      text references themes(id),
   card_image    text,                                       -- 実物カード画像のパス（assets）。任意
-  source        text not null default 'web' check (source in ('web','paper')),
+  source        text not null default 'web' check (source in ('web','paper','podcast')),
+  credit        text,                                       -- 外部から借りた問いの出典（例: 番組名）。公開ビューに出す
   approved      boolean not null default false,
   approved_at   timestamptz,
   created_at    timestamptz not null default now(),
@@ -77,7 +78,7 @@ create policy "react" on reactions for insert to anon, authenticated with check 
 -- 公開用ビュー: 件数と最新返事をまとめて 1 クエリで一覧を出す
 -- 実物カード画像（card_image）は非公開のため公開ビューには含めない
 create or replace view public_questions as
-select q.id, q.body, coalesce(nullif(q.nickname,''), 'だれか') as nickname, q.theme_id, t.label as theme_label,
+select q.id, q.body, coalesce(nullif(q.nickname,''), 'だれか') as nickname, q.theme_id, q.credit, t.label as theme_label,
        q.source, q.created_at,
        (select count(*) from answers a where a.question_id = q.id and a.approved) as answer_count
        -- 反応の件数は公開ビューに出さない（人気の比較を作らない。運営の参考値としてテーブルにだけ残す）

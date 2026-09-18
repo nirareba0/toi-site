@@ -285,6 +285,7 @@ function renderHome(shouldFocusHeading = true) {
                 <a href="#question/${q.id}" class="question-card-link" style="text-decoration: none; color: inherit;">
                   <div class="question-card-meta">
                     <span class="badge badge-topic">${escapeHtml(q.theme_label || "未分類")}</span>
+                    ${q.credit ? '<span class="badge badge-credit">ポッドキャストの問い</span>' : ""}
                     <span class="question-card-author">${escapeHtml(q.nickname || DEFAULT_NICKNAME)}</span>
                   </div>
                   <h3 class="question-card-body">${escapeHtml(q.body)}</h3>
@@ -877,6 +878,7 @@ async function renderDetail(questionId) {
       <article class="question-sheet" aria-labelledby="question-detail-title">
         <div class="question-sheet-top">
           <span class="badge badge-topic">${escapeHtml(question.theme_label || "未分類")}</span>
+          ${question.credit ? '<span class="badge badge-credit">ポッドキャストの問い</span>' : ""}
           ${statusBadgeHtml}
         </div>
 
@@ -887,6 +889,7 @@ async function renderDetail(questionId) {
         <div class="question-sheet-author">
           投稿者: <strong>${escapeHtml(question.nickname || DEFAULT_NICKNAME)}</strong>
         </div>
+        ${question.credit ? `<div class="question-credit">この問いは ${escapeHtml(question.credit)} のエピソードタイトルからお借りしました。</div>` : ""}
       </article>
 
       <!-- 届いている大人の返事セクション (立場のみ表示、氏名・ニックネームは非表示) -->
