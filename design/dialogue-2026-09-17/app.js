@@ -23,6 +23,7 @@ import {
   resolveRoute,
   setDraft,
   getPromptHint,
+  truncateForDisplay,
   PROMPT_CHIPS,
   TOPICS,
   DEFAULT_TOPIC,
@@ -732,7 +733,7 @@ function renderInbox() {
               <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
                 <select id="select-pending-question" class="form-select" style="flex: 1; min-width: 200px;">
                   ${pendingQuestions.map(q => `
-                    <option value="${q.id}">${escapeHtml(q.body.slice(0, 30))}...</option>
+                    <option value="${q.id}">${escapeHtml(truncateForDisplay(q.body, 30))}</option>
                   `).join('')}
                 </select>
                 <button type="button" id="btn-demo-approve" class="btn btn-primary btn-sm">
@@ -753,7 +754,7 @@ function renderInbox() {
                   <label for="select-approved-question" style="font-size: 0.75rem; font-weight: 600;">対象の問い:</label>
                   <select id="select-approved-question" class="form-select">
                     ${approvedQuestions.map(q => `
-                      <option value="${q.id}">${escapeHtml(q.body.slice(0, 30))}... (${q.status === 'answered' ? '返事あり' : '返事待ち'})</option>
+                      <option value="${q.id}">${escapeHtml(truncateForDisplay(q.body, 30))} (${q.status === 'answered' ? '返事あり' : '返事待ち'})</option>
                     `).join('')}
                   </select>
                 </div>
@@ -980,7 +981,7 @@ function openWithdrawDialog(questionId) {
 
   pendingWithdrawQuestionId = questionId;
   dialogTitle.textContent = '問いを取り下げますか？';
-  dialogDesc.textContent = `「${q.body.slice(0, 30)}${q.body.length > 30 ? '...' : ''}」を取り下げます。取り下げると、みんなの問いの一覧から非公開になります。`;
+  dialogDesc.textContent = `「${truncateForDisplay(q.body, 30)}」を取り下げます。取り下げると、みんなの問いの一覧から非公開になります。`;
 
   if (typeof appDialog.showModal === 'function') {
     appDialog.showModal();
@@ -1048,12 +1049,20 @@ function handleRouting() {
   const resolution = resolveRoute(window.location.hash);
 
   if (resolution.type === 'skip') {
+    // ページ内アンカー。まだ何も描画していなければホームを描いてから移動する
     if (!currentRenderedRoute) {
       renderHome(false);
       currentRenderedRoute = 'home';
     }
-    if (mainContainer) {
-      mainContainer.focus();
+    const target = document.getElementById(resolution.path) || mainContainer;
+    if (target) {
+      if (!target.hasAttribute('tabindex')) {
+        target.setAttribute('tabindex', '-1');
+      }
+      target.focus();
+      if (target !== mainContainer) {
+        target.scrollIntoView({ behavior: 'smooth' });
+      }
     }
     return;
   }

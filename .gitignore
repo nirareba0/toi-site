@@ -6,3 +6,9 @@ node_modules/
 
 # 中高生の手書き素材は Git に入れない（正本: 個人 Drive AIOS/assets/toi-site/design-web/）
 design/astra-2026-09-17/assets/sticky-wall.jpg
+
+# Supabase 認証情報（本番環境設定）
+web/js/config.js
+
+# Supabase CLI の作業ファイル（プロジェクト参照のみ。秘密情報は含まないが追跡しない）
+supabase/.temp/

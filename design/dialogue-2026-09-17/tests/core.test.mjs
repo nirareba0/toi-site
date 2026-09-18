@@ -24,6 +24,8 @@ import {
   resolveRoute,
   setDraft,
   getPromptHint,
+  truncateForDisplay,
+  IN_PAGE_ANCHORS,
   MAX_BODY_LENGTH
 } from '../core.mjs';
 
@@ -432,4 +434,37 @@ test('受付画面ガード (getReceiptQuestion): 直前に送信したユーザ
 
   withdrawQuestion(state, qId2);
   assert.equal(getReceiptQuestion(state, qId2), null);
+});
+
+test('表示用の切り詰め (truncateForDisplay): 結合絵文字・国旗を途中で割らない', () => {
+  // 30文字以内はそのまま返す
+  assert.equal(truncateForDisplay('短い問いです', 30), '短い問いです');
+  assert.equal(truncateForDisplay('', 30), '');
+  assert.equal(truncateForDisplay(null, 30), '');
+
+  // 孤立サロゲートを作らない（String.prototype.slice だと "\uD83D" が残る）
+  const surrogateCase = 'あ'.repeat(29) + '\u{1F467}ちゃんのことを考えた';
+  const cut = truncateForDisplay(surrogateCase, 30);
+  assert.equal(/[\uD800-\uDBFF]$/.test(cut), false, '末尾に孤立サロゲートが残っている');
+  assert.equal(surrogateCase.slice(0, 30).endsWith('\uD83D'), true, '前提: slice なら割れること');
+
+  // 結合絵文字（家族）を分解しない
+  const family = '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466}';
+  const zwjCase = 'あ'.repeat(29) + family + 'と考えた';
+  const zwjCut = truncateForDisplay(zwjCase, 30);
+  assert.equal(zwjCut, 'あ'.repeat(29) + family + '…', '家族絵文字が途中で割れている');
+
+  // 切り詰めたときだけ … を付ける
+  assert.equal(truncateForDisplay('あ'.repeat(31), 30), 'あ'.repeat(30) + '…');
+  assert.equal(truncateForDisplay('あ'.repeat(30), 30), 'あ'.repeat(30));
+});
+
+test('ルーター解決 (resolveRoute): ページ内アンカーは新しいタブで開いても404にならない', () => {
+  // 「まずは読んでみる」の飛び先。リンクの既定動作を止めない経路でもルーターに届く
+  assert.deepEqual(resolveRoute('#question-list-title'), { type: 'skip', path: 'question-list-title' });
+  assert.deepEqual(resolveRoute('#main-content'), { type: 'skip', path: 'main-content' });
+
+  // 一覧に無いページ内アンカーらしき文字列は従来どおり not_found
+  assert.deepEqual(resolveRoute('#unknown-anchor'), { type: 'not_found', path: 'unknown-anchor' });
+  assert.ok(IN_PAGE_ANCHORS.includes('question-list-title'));
 });

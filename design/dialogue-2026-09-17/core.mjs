@@ -156,21 +156,36 @@ export const INITIAL_SEED_QUESTIONS = [
  * @param {string} str
  * @returns {number}
  */
-export function countCharacters(str) {
-  if (!str) return 0;
+export function toGraphemes(str) {
+  if (!str) return [];
   if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
     try {
       const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
-      let count = 0;
-      for (const _ of segmenter.segment(str)) {
-        count++;
-      }
-      return count;
+      return Array.from(segmenter.segment(str), seg => seg.segment);
     } catch {
       // フォールバックへ
     }
   }
-  return Array.from(str).length;
+  return Array.from(str);
+}
+
+export function countCharacters(str) {
+  if (!str) return 0;
+  return toGraphemes(str).length;
+}
+
+/**
+ * 一覧・ダイアログなどの短い表示用に本文を切り詰める
+ * 書記素クラスタ単位で切るため、結合絵文字・国旗が途中で割れて文字化けしない
+ * @param {string} str
+ * @param {number} [maxLength=30]
+ * @returns {string} 切り詰めた場合は末尾に … が付く
+ */
+export function truncateForDisplay(str, maxLength = 30) {
+  if (!str) return '';
+  const graphemes = toGraphemes(str);
+  if (graphemes.length <= maxLength) return graphemes.join('');
+  return graphemes.slice(0, maxLength).join('') + '…';
 }
 
 /**
@@ -501,8 +516,15 @@ export function getCurrentSpotlightQuestion(state) {
 }
 
 /**
+ * 画面遷移ではなく、同じページ内の要素へ移動するためのハッシュ
+ * リンクの既定動作を止めていても、新しいタブで開く・URLを直接指定する経路では
+ * ルーターに届くため、404 にせず skip として扱う
+ */
+export const IN_PAGE_ANCHORS = ['main-content', 'question-list-title'];
+
+/**
  * ハッシュ文字列からルーティングのアクションを判定する
- * スキップリンク（#main-content）は 404 とせず skip アクションとして解決する
+ * ページ内アンカー（IN_PAGE_ANCHORS）は 404 とせず skip アクションとして解決する
  * @param {string} hash
  * @returns {{ type: 'route' | 'skip' | 'not_found', path: string, paramId?: string }}
  */
@@ -511,8 +533,8 @@ export function resolveRoute(hash) {
   if (!clean || clean === 'home') {
     return { type: 'route', path: 'home' };
   }
-  if (clean === 'main-content') {
-    return { type: 'skip', path: 'main-content' };
+  if (IN_PAGE_ANCHORS.includes(clean)) {
+    return { type: 'skip', path: clean };
   }
   const segments = clean.split('/');
   const [routePath, paramId] = segments;
