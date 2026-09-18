@@ -15,7 +15,8 @@ import {
   markAnswerAsSeen,
   matchMyQuestions,
   calculateUnreadCount,
-  formatAnswerForPublic
+  formatAnswerForPublic,
+  activeSiteLinks
 } from "../js/core.mjs";
 
 function createMockStorage(initialData = {}) {
@@ -336,4 +337,18 @@ test("7. 表示用の切り詰め (truncateForDisplay)", () => {
   assert.equal(truncateForDisplay("短い文", 10), "短い文");
   assert.equal(truncateForDisplay("あいうえおかきくけこさしすせそ", 5), "あいうえお…");
   assert.equal(truncateForDisplay("👨‍👩‍👧‍👦🇯🇵💭✨🎉", 3), "👨‍👩‍👧‍👦🇯🇵💭…");
+});
+
+test("8. 運営リンク (activeSiteLinks)", async (t) => {
+  await t.test("URL が空のときは何も出さない", () => {
+    assert.deepEqual(activeSiteLinks({ instagram: "", operator: "" }), []);
+    assert.deepEqual(activeSiteLinks({ instagram: "   ", operator: undefined }), []);
+  });
+
+  await t.test("https の URL だけを通す（推測や http は出さない）", () => {
+    const out = activeSiteLinks({ instagram: "https://www.instagram.com/example/", operator: "example.com" });
+    assert.equal(out.length, 1);
+    assert.equal(out[0].key, "instagram");
+    assert.equal(out[0].label, "Miacis の Instagram");
+  });
 });

@@ -1636,3 +1636,11 @@ body {
 @media (max-width: 400px) {
   .about-brand { flex-direction: column; align-items: flex-start; }
 }
+
+/* 運営についての外部リンク */
+.about-links { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 10px; }
+.about-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--color-vivid-blue, #244fc7); font-weight: 600; font-size: 0.9375rem; text-decoration: none;
+}
+.about-link:hover { text-decoration: underline; }

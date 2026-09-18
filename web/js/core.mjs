@@ -335,3 +335,24 @@ export function createInitialState() {
     errorMessage: null
   };
 }
+
+/**
+ * 運営まわりの外部リンク。
+ * **URL を入れるまで画面に出ない。** 空のまま公開しても、リンク切れは起きない。
+ * 中高生が見るサイトなので、確認できていない URL を推測で入れないこと。
+ */
+export const SITE_LINKS = {
+  instagram: "",   // 例: "https://www.instagram.com/xxxxx/"  Miacis の公式アカウント
+  operator: ""     // 例: "https://xxxxx.com/"  にしむ（運営者）の個人サイト
+};
+
+/**
+ * 設定されているリンクだけを {key, url, label} の配列で返す
+ * @returns {Array<{key: string, url: string, label: string}>}
+ */
+export function activeSiteLinks(links = SITE_LINKS) {
+  const label = { instagram: "Miacis の Instagram", operator: "にしむ（運営者）のサイト" };
+  return Object.entries(links)
+    .filter(([, url]) => typeof url === "string" && /^https:\/\//.test(url.trim()))
+    .map(([key, url]) => ({ key, url: url.trim(), label: label[key] ?? key }));
+}

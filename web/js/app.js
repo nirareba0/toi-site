@@ -12,6 +12,7 @@ import {
   validateQuestionDraft,
   countCharacters,
   truncateForDisplay,
+  activeSiteLinks,
   getPromptHint,
   resolveRoute,
   loadMyQuestions,
@@ -994,6 +995,29 @@ function renderAbout() {
           あなたの投げかけたひとことが、誰かにとっての新しい見方のきっかけになります。
         </p>
 
+        ${(() => {
+          const links = activeSiteLinks();
+          if (links.length === 0) return "";
+          return `
+        <h2 class="about-subtitle">運営について</h2>
+        <p class="about-p">
+          この問いコーナーは、Miacis のスタッフと地域の大人が続けています。
+          ふだんの Miacis の様子や、運営している人のことは、こちらから見られます。
+        </p>
+        <ul class="about-links">
+          ${links.map(l => `
+            <li><a href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer" class="about-link">
+              ${escapeHtml(l.label)}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a></li>
+          `).join("")}
+        </ul>`;
+        })()}
+
         <div style="margin-top: 28px;">
           <a href="#ask" class="btn btn-primary">問いを書いてみる</a>
         </div>
@@ -1128,7 +1152,23 @@ if (skipLink) {
 // 初期化と起動
 window.addEventListener("hashchange", handleRouting);
 
+function renderFooterLinks() {
+  const container = document.querySelector(".footer-links");
+  if (!container) return;
+  for (const l of activeSiteLinks()) {
+    if (container.querySelector(`a[href="${l.url}"]`)) continue;
+    const a = document.createElement("a");
+    a.href = l.url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.className = "footer-link external-link";
+    a.textContent = l.label;
+    container.appendChild(a);
+  }
+}
+
 async function boot() {
+  renderFooterLinks();
   await syncData();
   await handleRouting();
 }
