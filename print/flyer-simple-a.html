@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8"><title>問いコーナー チラシ — シンプル A（問いが主役）</title>
+<style>
+  @page { size: A4; margin: 0; }
+  @font-face { font-family: "Plex Mono"; src: url("fonts/IBMPlexMono-Regular.ttf"); }
+  html,body{margin:0;background:#fff}
+  body{font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;color:#203047;-webkit-font-smoothing:antialiased}
+  .page{position:relative;width:210mm;height:297mm;overflow:hidden;background:#fff6e8}
+  .mono{font-family:"Plex Mono",monospace}
+  .top{position:absolute;top:14mm;left:18mm;right:18mm;display:flex;justify-content:space-between;align-items:center;font-size:9.5pt;color:#53647b}
+  .top .brand{display:flex;align-items:center;gap:3mm;font-weight:700;color:#203047}
+  .top .brand img{width:9mm;height:auto}
+  /* 主役: 実物の問い1つを付箋で大きく */
+  .note{position:absolute;left:22mm;top:52mm;width:166mm;height:118mm;background:#fff184;transform:rotate(-1.6deg);
+        display:flex;align-items:center;justify-content:center;padding:14mm;box-sizing:border-box}
+  .note::before{content:"";position:absolute;top:-5mm;left:50%;width:10mm;height:10mm;margin-left:-5mm;border-radius:50%;background:#fff6e8;border:1.2mm solid #244fc7;box-sizing:border-box}
+  .note p{margin:0;font-size:44pt;font-weight:800;line-height:1.3;letter-spacing:.01em;text-align:left;width:100%}
+  .who{position:absolute;left:24mm;top:178mm;font-size:11pt;color:#53647b}
+  .who b{color:#203047}
+  /* 言葉 */
+  .lead{position:absolute;left:18mm;top:196mm;font-size:24pt;font-weight:800;line-height:1.35}
+  .lead span{color:#244fc7}
+  .sub{position:absolute;left:18mm;top:222mm;font-size:11pt;line-height:1.8;color:#53647b}
+  /* QR */
+  .qr{position:absolute;right:18mm;top:196mm;width:64mm;text-align:center}
+  .qr img{width:52mm;height:52mm;display:block;margin:0 auto;background:#fff;padding:2.5mm;box-sizing:content-box;border-radius:3mm}
+  .qr .url{margin-top:2.5mm;font-size:8.5pt;color:#244fc7}
+  .foot{position:absolute;left:18mm;right:18mm;bottom:11mm;display:flex;justify-content:space-between;font-size:8pt;color:#53647b;border-top:.3mm solid #f0d9c4;padding-top:3mm}
+</style></head>
+<body><div class="page">
+  <div class="top"><div class="brand"><img src="mark.svg" alt="">Miacis 問いコーナー</div><div class="mono">@miacis_1009</div></div>
+
+  <div class="note"><p>なんで人間は<br>ペンギンより<br>偉いの？</p></div>
+  <div class="who">館内の問いコーナーに、<b>実際に届いた問い</b>です。返事は 4 人の大人から届きました。</div>
+
+  <div class="lead">問いは、<br><span>世界の見方をふやす。</span></div>
+  <div class="sub">モヤモヤや疑問、なんでも問いてね。<br>名前はいりません。一文でも大丈夫。<br>スタッフや地域の大人が、返事を書きます。</div>
+
+  <div class="qr"><img src="qr-site.svg" alt="サイトの QR"><div class="url mono">nirareba0.github.io/toi-site</div></div>
+
+  <div class="foot"><span>本名・学校名・連絡先など、誰かが特定される内容は書かないでください。</span><span>山梨県韮崎市 青少年育成プラザ Miacis</span></div>
+</div></body></html>

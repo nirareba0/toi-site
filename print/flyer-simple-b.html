@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja"><head><meta charset="utf-8"><title>問いコーナー チラシ — シンプル B（言葉が主役）</title>
+<style>
+  @page { size: A4; margin: 0; }
+  @font-face { font-family: "Plex Mono"; src: url("fonts/IBMPlexMono-Regular.ttf"); }
+  html,body{margin:0;background:#fff}
+  body{font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;color:#fff;-webkit-font-smoothing:antialiased}
+  .page{position:relative;width:210mm;height:297mm;overflow:hidden;background:#244fc7}
+  .mono{font-family:"Plex Mono",monospace}
+  .top{position:absolute;top:14mm;left:18mm;right:18mm;display:flex;justify-content:space-between;align-items:center;font-size:9.5pt;color:#cfe0ff}
+  .top .brand{display:flex;align-items:center;gap:3mm;font-weight:700;color:#fff}
+  .mark{position:absolute;left:18mm;top:34mm;width:34mm;height:auto}
+  h1{position:absolute;left:18mm;top:78mm;margin:0;font-size:58pt;line-height:1.16;font-weight:800;letter-spacing:.005em}
+  h1 span{display:block}
+  h1 .accent{color:#ffb08a}
+  .sub{position:absolute;left:18mm;top:170mm;font-size:14pt;font-weight:600;line-height:1.75}
+  .sub small{display:block;font-size:10.5pt;font-weight:400;color:#cfe0ff;margin-top:3mm;line-height:1.8}
+  .qrbox{position:absolute;right:18mm;bottom:22mm;width:92mm;background:#fff6e8;color:#203047;border-radius:5mm;padding:7mm;box-sizing:border-box;display:grid;grid-template-columns:36mm 1fr;column-gap:6mm;row-gap:3.5mm;align-items:center}
+  .qrbox img{width:36mm;height:36mm;display:block;flex:none}
+  .qrbox b{display:block;font-size:13pt;line-height:1.4}
+  .qrbox .url{grid-column:1/-1;margin:0;font-size:8.5pt;color:#244fc7;text-align:center;white-space:nowrap}
+  .foot{position:absolute;left:18mm;bottom:11mm;font-size:8pt;color:#cfe0ff;line-height:1.7}
+</style></head>
+<body><div class="page">
+  <div class="top"><div class="brand">Miacis 問いコーナー</div><div class="mono">@miacis_1009</div></div>
+  <img class="mark" src="mark-on-blue.svg" alt="">
+  <h1><span>問いは、</span><span class="accent">世界の見方を</span><span class="accent">ふやす。</span></h1>
+  <div class="sub">モヤモヤや疑問、なんでも問いてね。<small>名前はいりません。一文でも大丈夫。<br>スタッフや地域の大人が、それぞれの考えを書いて返します。</small></div>
+  <div class="qrbox"><img src="qr-site.svg" alt="サイトの QR"><b>スマホで、<br>ここから書けます。</b><div class="url mono">nirareba0.github.io/toi-site</div></div>
+  <div class="foot">本名・学校名・連絡先など、誰かが特定される内容は書かないでください。<br>山梨県韮崎市 青少年育成プラザ Miacis</div>
+</div></body></html>
