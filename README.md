@@ -1,12 +1,40 @@
 # toi-site — 問う応える（Miacis 問いコーナー）
 
-中高生が問いを投函し、大人が返事を書く。韮崎のユースセンター Miacis の紙の「問いコーナー」を Web に広げるサイト。
-**文書・要件・決定の正本は `~/AIOS/core/projects/miacis/`。** ここはコードだけ。
+山梨県韮崎市の中高生の居場所 **Miacis（ミアキス）** の館内にある、紙の「問いコーナー」を Web に広げるサイト。
+中高生が問いを書き、スタッフや地域の大人が返事を書く。館内の紙とこのサイトは同じ問いコーナー。
+
+**文書・要件・決定の正本は `~/AIOS/core/projects/miacis/`。ここはコードだけ。**
+
+## 構成
 
 | フォルダ | 中身 |
 |---|---|
-| `web/` | 静的フロントエンド（HTML / CSS / JS。ビルド無し）。Supabase を直接呼ぶ |
-| `supabase/` | スキーマ・RLS・シード（`schema.sql`）。`npx supabase` で適用 |
-| `gas/` | 既存の Google Apps Script デプロイ（配布済み QR の飛び先）を新サイトへ転送するスタブ |
+| `web/` | 静的フロント（HTML / CSS / 素の ES Modules。ビルド無し）。Supabase を直接読む |
+| `supabase/` | スキーマ・RLS・列権限（`schema.sql`）、旧データの移行とカード画像アップロード |
+| `gas/` | 配布済み QR の飛び先（旧 Google Apps Script）を新サイトへ転送するスタブ |
+| `design/` | 制作過程のデザイン試作4版（履歴。現行は `web/`） |
 
-素材（スキャン・カード画像・写真）は Git に入れない。個人 Drive `AIOS/assets/toi-site/`。
+## 動かす
+
+```sh
+cd web && python3 -m http.server 8800 --bind 127.0.0.1
+node --test web/tests/          # ドメインロジックのテスト
+```
+
+`web/js/config.js` に Supabase の URL と anon key が入っている。
+**anon key はブラウザに配られる前提の公開鍵**で、実際のアクセス制御は RLS と列単位の GRANT が行う。
+
+## 設計で守っていること
+
+- **未承認の投稿は匿名から読めない。** RLS で `approved` のものだけ。公開ビュー経由でのみ読む
+- **回答者は氏名ではなくタグで表す。** `answers.role_id` が `responder_roles` を参照する。
+  自由文ではないので、氏名を書き込めない
+- **匿名に渡す列を絞っている。** 氏名・カード画像パス・client_hash はテーブルから直接読めない
+- **実物カードのスキャンは非公開バケット。** サイトには出さない
+- **AI と一緒に考えた返事は明示する。** `answers.ai_assisted`
+
+## 旧データについて
+
+旧サイトの本文は、OCR の「クレンジング」工程で **AI が書き換えていた**（返事 33/54 枚、問い 10 枚）。
+生の OCR と実物カードに突き合わせて直したものが `supabase/data-fixups.json`。
+回答者名はこのリポジトリに持たない（sha256 で照合する）。
