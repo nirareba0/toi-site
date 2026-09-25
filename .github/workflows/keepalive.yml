@@ -1,0 +1,26 @@
+name: Supabase Keepalive Ping
+
+# Supabase の無料プロジェクトは1週間使われないと自動で休止し、サイトが空になる（2026-09-25 に toi-site で実際に起きた）。
+# 毎日1回だけ DB に軽い問い合わせを送って休止を防ぐ。失敗したらこのジョブを失敗にして、GitHub からメールで気づけるようにする。
+on:
+  schedule:
+    - cron: '0 21 * * *'   # 毎日 UTC 21:00（JST 6:00）
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Ping Supabase
+        run: |
+          set -euo pipefail
+          # 設定ファイルを ES Module として読み、URL と anon key（公開鍵）を取り出す
+          eval "$(node --input-type=module -e "const c = await import('./web/js/config.js'); console.log('URL=' + c.SUPABASE_URL); console.log('KEY=' + c.SUPABASE_ANON_KEY)")"
+          code=$(curl -s -o /tmp/body -w '%{http_code}' --max-time 30 "$URL/rest/v1/themes?select=id&limit=1" \
+            -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H 'Content-Type: application/json')
+          echo "HTTP $code: $(head -c 200 /tmp/body)"
+          test "$code" = "200"
