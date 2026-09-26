@@ -38,3 +38,12 @@ node --test web/tests/          # ドメインロジックのテスト
 旧サイトの本文は、OCR の「クレンジング」工程で **AI が書き換えていた**（返事 33/54 枚、問い 10 枚）。
 生の OCR と実物カードに突き合わせて直したものが `supabase/data-fixups.json`。
 回答者名はこのリポジトリに持たない（sha256 で照合する）。
+
+## 検索に出すしくみ（2026-09-27）
+
+サイト本体はハッシュルーティングなので、検索エンジンからは問いごとのページが見えない。そこで公開のたびに
+`scripts/prerender.mjs` が公開ビューから問いと返事を読み、`web/q/<id>/`（問いごとの静的ページ）・`web/q/`（一覧）・`web/sitemap.xml` を書き出す（`pages.yml`、毎日 JST 6:30 にも再実行）。生成物は Git に入れない。
+
+- 静的ページには問いのニックネームを出さない（中高生の投稿が検索に載るため）
+- ラジオ「ミアキスの問いコーナー」で扱った問いは `scripts/radio-episodes.json` に足すと、その問いのページから YouTube の回へリンクされる
+- Google Search Console（URL プレフィックス `https://nirareba0.github.io/toi-site/`）に登録済み。所有権確認は `web/google89fab6771a349d4e.html`（**消さない**）。sitemap は `sitemap.xml` で送信済み
