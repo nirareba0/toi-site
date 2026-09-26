@@ -4,6 +4,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
+  # 新しく承認された問いを検索向けページ（web/q/）に載せるため、毎日作り直す
+  schedule:
+    - cron: '30 21 * * *'   # 毎日 UTC 21:30（JST 6:30）
   workflow_dispatch:
 
 permissions:
@@ -34,6 +37,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 検索向けの静的ページと sitemap を書き出す
+        run: node scripts/prerender.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

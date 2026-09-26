@@ -11,3 +11,7 @@ design/astra-2026-09-17/assets/sticky-wall.jpg
 
 # Supabase CLI の作業ファイル（プロジェクト参照のみ。秘密情報は含まないが追跡しない）
 supabase/.temp/
+
+# 公開直前に scripts/prerender.mjs が書き出す（Git に入れない）
+web/q/
+web/sitemap.xml
