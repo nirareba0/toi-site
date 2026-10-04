@@ -318,6 +318,7 @@ test("6. ルーター解決 (resolveRoute)", async (t) => {
     assert.deepEqual(resolveRoute("#inbox"), { type: "route", path: "inbox", paramId: undefined });
     assert.deepEqual(resolveRoute("#question/q-456"), { type: "route", path: "question", paramId: "q-456" });
     assert.deepEqual(resolveRoute("#about"), { type: "route", path: "about", paramId: undefined });
+    assert.deepEqual(resolveRoute("#why"), { type: "route", path: "why", paramId: undefined });
   });
 
   await t.test("ページ内アンカーは skip として解決され 404 にならない", () => {
@@ -328,6 +329,7 @@ test("6. ルーター解決 (resolveRoute)", async (t) => {
   await t.test("未知のルートは not_found として解決される", () => {
     assert.equal(resolveRoute("#unknown").type, "not_found");
     assert.equal(resolveRoute("#ask/something/else").type, "not_found");
+    assert.equal(resolveRoute("#why/extra").type, "not_found");
     assert.equal(resolveRoute("#question").type, "not_found"); // paramId 不足
     assert.equal(resolveRoute("#receipt").type, "not_found");  // paramId 不足
   });

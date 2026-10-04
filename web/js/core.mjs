@@ -142,10 +142,10 @@ export function resolveRoute(hash) {
   }
   const segments = clean.split('/');
   const [routePath, paramId] = segments;
-  const validRoutes = ['ask', 'receipt', 'inbox', 'question', 'about'];
+  const validRoutes = ['ask', 'receipt', 'inbox', 'question', 'about', 'why'];
   const validSegmentCount = (
     (routePath === 'ask' && (segments.length === 1 || (segments.length === 2 && paramId === 'confirm')))
-    || (['inbox', 'about'].includes(routePath) && segments.length === 1)
+    || (['inbox', 'about', 'why'].includes(routePath) && segments.length === 1)
     || (['receipt', 'question'].includes(routePath) && segments.length === 2 && Boolean(paramId))
   );
   if (validRoutes.includes(routePath) && validSegmentCount) {

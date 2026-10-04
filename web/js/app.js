@@ -996,6 +996,9 @@ function renderAbout() {
           そんな素朴な疑問やモヤモヤをここに投げかけると、いろいろな経験をもつ地域の大人たちが、
           それぞれの視点で返事を持ち寄ります。
         </p>
+        <p class="about-p">
+          <a href="#why" class="about-link">なぜ問うことが大事なのか →</a>
+        </p>
 
         <h2 class="about-subtitle">ひとことでも、まとまっていなくても。</h2>
         <p class="about-p">
@@ -1034,6 +1037,127 @@ function renderAbout() {
   `;
 
   const h1 = document.getElementById("about-heading");
+  if (h1) h1.focus();
+}
+
+/**
+ * 8. なぜ問うの？ (#why)
+ * 問うこと・「わからない」と言えることの意味を、中高生に向けて書いたページ。
+ */
+function renderWhy() {
+  mainContainer.innerHTML = `
+    <div class="about-container">
+      <article class="about-article why-article">
+        <h1 id="why-heading" class="about-h1" tabindex="-1">なぜ、問うの？</h1>
+        <p class="why-lead">
+          <span class="why-phrase">「わからない」と言えるのは、</span><span class="why-phrase">考えはじめた合図です。</span>
+        </p>
+
+        <h2 class="about-subtitle">いちばん賢いと言われた人は、「知らない」と言った</h2>
+        <p class="about-p">
+          2400年ほど前のギリシャに、ソクラテスという人がいました。
+          あるとき神さまのお告げで「ソクラテスより賢い者はいない」と言われます。
+          本人は「そんなはずはない」と思い、賢いと評判の人たちに会いに行って、話を聞いてまわりました。
+        </p>
+        <p class="about-p">
+          わかったのは、こういうことでした。評判の人たちは、本当は知らないことまで「知っている」と思いこんでいる。
+          自分は知らない。でも、知らないということは自覚している。
+          ちがいはその一点だけで、それがお告げの意味なのかもしれない、と。
+        </p>
+        <p class="why-note">
+          これは「無知の知」という言葉で知られています。最近の研究では「不知の自覚」、つまり
+          「知らないことを、知らないと自覚していること」と呼ぶほうが正確だと言われています。
+        </p>
+
+        <h2 class="about-subtitle">「わからない」と言える人のほうが、のびていく</h2>
+        <p class="about-p">
+          自分の考えはまちがっているかもしれない、と認められること。心理学ではこれを
+          「知的謙虚さ」と呼んで研究しています。そうした態度をもつ中高生ほど、学ぶ意欲が高く、
+          考えのちがう人ともうまく話せる、という研究があります。
+        </p>
+        <p class="about-p">
+          「わからない」は、負けでも恥でもありません。そこから先に進むための、入り口です。
+        </p>
+
+        <h2 class="about-subtitle">すぐに答えを出さなくていい</h2>
+        <p class="about-p">
+          「幸せってなに？」「ふつうってなんだろう？」。世の中には、すぐには答えの出ない問いがたくさんあります。
+          答えが出ないまま、もやもやを抱えて考えつづける力のことを、「ネガティブ・ケイパビリティ」と呼ぶことがあります。
+        </p>
+        <p class="about-p">
+          テストでは、早く正しい答えを出すことが求められます。でも人生で出会う問いの多くは、
+          答えがひとつに決まりません。もやもやしたままでいいのです。それは、ちゃんと考えている証拠です。
+        </p>
+
+        <h2 class="about-subtitle">なぜ今、だれかと話すことが大事なの？</h2>
+        <ul class="why-list">
+          <li>
+            <strong>似た意見ばかりが届きやすい。</strong>
+            SNS や動画のおすすめは、あなたが好きそうなものを選んで見せてきます。
+            気づかないうちに、自分とちがう考えにふれる機会が減っていきます。
+          </li>
+          <li>
+            <strong>すぐに白黒がつけられやすい。</strong>
+            ネットでは、正しいか、まちがっているか、敵か味方かで話が進みがちです。
+            「どっちとも言えない」を言いにくい空気があります。
+          </li>
+          <li>
+            <strong>年のちがう人と話す機会が少ない。</strong>
+            家族と先生のほかに、ちがう人生を歩いてきた大人とじっくり話すことは、案外ありません。
+          </li>
+        </ul>
+        <p class="about-p">
+          だからこそ、自分とちがう人の考えにゆっくりふれる場所が必要です。
+          相手を言い負かすためではなく、自分の見え方をふやすために。
+        </p>
+
+        <h2 class="about-subtitle">ここでやっていること</h2>
+        <ol class="why-steps">
+          <li>
+            <span class="why-step-label">問う</span>
+            気になっていること、もやもやしていることを、ひとことでも書いてみる。名前は出しません。
+          </li>
+          <li>
+            <span class="why-step-label">応える</span>
+            スタッフや地域の大人が、それぞれの経験から返事を書きます。正解を教えるためではなく、一緒に考えるための返事です。
+          </li>
+          <li>
+            <span class="why-step-label">見え方がふえる</span>
+            ひとつの問いに、いくつもの返事が並びます。どれを選んでも、どれも選ばなくてもかまいません。
+          </li>
+        </ol>
+        <p class="about-p">
+          大人も、全部わかっているわけではありません。返事に「わからない」と書くこともあります。
+          それも、この場所の大事な返事のひとつです。
+        </p>
+
+        <div class="why-adult">
+          <h2 class="why-adult-title">大人のあなたへ</h2>
+          <p>
+            中高生の問いには、答えを教えたくなるものも多いと思います。
+            でもここでは、正解を渡すより、あなた自身がどう考えてきたかを書いてください。
+            迷っていることは、迷っているままでかまいません。
+            大人が「わからない」と言える姿は、それだけで、問うことの意味を伝えます。
+          </p>
+        </div>
+
+        <h2 class="about-subtitle">もっと知りたい人へ</h2>
+        <ul class="why-books">
+          <li>梶谷真司『問うとはどういうことか　人間的に生きるための思考のレッスン』（大和書房）</li>
+          <li>梶谷真司『考えるとはどういうことか　0歳から100歳までの哲学入門』（幻冬舎新書）</li>
+          <li>プラトン『ソクラテスの弁明』（光文社古典新訳文庫ほか）</li>
+          <li>帚木蓬生『ネガティブ・ケイパビリティ　答えの出ない事態に耐える力』（朝日選書）</li>
+        </ul>
+
+        <div class="why-cta">
+          <a href="#ask" class="btn btn-primary">問いを書いてみる</a>
+          <a href="#home" class="btn btn-secondary">みんなの問いを読む</a>
+        </div>
+      </article>
+    </div>
+  `;
+
+  const h1 = document.getElementById("why-heading");
   if (h1) h1.focus();
 }
 
@@ -1128,6 +1252,8 @@ async function handleRouting() {
       await renderDetail(resolution.paramId);
     } else if (resolution.path === "about") {
       renderAbout();
+    } else if (resolution.path === "why") {
+      renderWhy();
     }
   } else {
     // 404

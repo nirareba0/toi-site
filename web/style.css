@@ -1649,3 +1649,76 @@ body {
 .badge-credit { background: #fff1e2; color: #a2541f; }
 .question-credit { margin-top: 10px; font-size: 0.8125rem; line-height: 1.7; color: var(--color-body-muted, #53647b); }
 .question-credit a { color: var(--color-vivid-blue, #244fc7); }
+
+/* ==========================================================================
+   なぜ問うの？ (#why)
+   ========================================================================== */
+.why-lead {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.6;
+  color: var(--color-vivid-blue);
+  background: var(--color-pale-blue);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  margin-bottom: 8px;
+}
+.why-phrase { display: inline-block; }
+.why-note {
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  color: var(--color-body-muted);
+  border-left: 3px solid var(--color-pale-yellow);
+  padding: 4px 0 4px 12px;
+  margin-bottom: 16px;
+}
+.why-list,
+.why-books {
+  margin: 0 0 16px;
+  padding-left: 1.25em;
+  font-size: 0.9375rem;
+  line-height: 1.75;
+}
+.why-list li + li,
+.why-books li + li { margin-top: 10px; }
+.why-list strong { display: block; }
+.why-books { font-size: 0.875rem; color: var(--color-body-muted); }
+.why-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 0.9375rem;
+  line-height: 1.75;
+}
+.why-steps li {
+  background: var(--color-pale-blue-subtle);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+.why-step-label {
+  display: block;
+  font-family: var(--font-heading);
+  font-weight: 800;
+  color: var(--color-vivid-blue);
+  margin-bottom: 2px;
+}
+.why-adult {
+  margin: 28px 0 8px;
+  padding: 18px 20px;
+  border-radius: var(--radius-md);
+  background: #fff7e0;
+  border: 1px solid var(--color-pale-yellow);
+}
+.why-adult-title {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.why-adult p { font-size: 0.9375rem; line-height: 1.75; }
+.why-cta { margin-top: 28px; display: flex; flex-wrap: wrap; gap: 10px; }
