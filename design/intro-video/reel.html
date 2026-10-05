@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>問いコーナー 導入動画</title>
+<!--
+  Miacis 問いコーナーの導入動画（15秒・1920x1080）。canvas 1枚で描き、render で MP4 に書き出す。
+  ?t=7.5 を付けて開くと、その秒で止まった1コマを表示する（確認用）。
+  字体は fonts/ に置く（Git に入れない。取り方は README.md）。
+-->
+<style>
+  @font-face { font-family: ZM; font-weight: 900; src: url(fonts/ZenMaruGothic-Black.ttf); }
+  @font-face { font-family: ZM; font-weight: 700; src: url(fonts/ZenMaruGothic-Bold.ttf); }
+  @font-face { font-family: DG; src: url(fonts/DelaGothicOne-Regular.ttf); }
+  html, body { margin: 0; background: #16223a; overflow: hidden; }
+  canvas { display: block; width: 1920px; height: 1080px; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1920" height="1080"></canvas>
+<script>
+const W = 1920, H = 1080, DURATION = 15
+const cv = document.getElementById('c'), x = cv.getContext('2d')
+
+// サイトの色（web/style.css）
+const C = {
+  blue: '#244fc7', blueDeep: '#1b3da3', navy: '#203047', night: '#16223a',
+  yellow: '#ffe680', apricot: '#ffb08a', apricotPale: '#ffc7af', pale: '#edf5ff', white: '#ffffff', muted: '#53647b',
+}
+
+// ---------- 道具 ----------
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v))
+const seg = (t, a, b) => clamp((t - a) / (b - a))
+const lerp = (a, b, p) => a + (b - a) * p
+const outCubic = p => 1 - Math.pow(1 - p, 3)
+const outExpo = p => p >= 1 ? 1 : 1 - Math.pow(2, -10 * p)
+const inOutCubic = p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2
+const inCubic = p => p * p * p
+const outBack = (p, s = 1.7) => 1 + (s + 1) * Math.pow(p - 1, 3) + s * Math.pow(p - 1, 2)
+const outElastic = p => p === 0 || p === 1 ? p : Math.pow(2, -10 * p) * Math.sin((p * 10 - .75) * (2 * Math.PI / 3)) + 1
+function rng(seed) { return () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296 } }
+
+function font(size, fam = 'ZM', weight = 900) { x.font = fam === 'DG' ? `${size}px DG` : `${weight} ${size}px ZM` }
+function text(str, px, py, size, { fam = 'ZM', weight = 900, color = C.white, align = 'center', alpha = 1, shadow = null, stroke = null } = {}) {
+  if (alpha <= 0) return
+  x.save(); x.globalAlpha *= alpha; font(size, fam, weight); x.textAlign = align; x.textBaseline = 'middle'
+  if (shadow) { x.fillStyle = shadow.color; x.fillText(str, px + shadow.dx, py + shadow.dy) }
+  if (stroke) { x.lineJoin = 'round'; x.lineWidth = stroke.width; x.strokeStyle = stroke.color; x.strokeText(str, px, py) }
+  x.fillStyle = color; x.fillText(str, px, py); x.restore()
+}
+function rr(px, py, w, h, r) { x.beginPath(); x.roundRect(px, py, w, h, r) }
+function withT(px, py, s, rot, fn) { x.save(); x.translate(px, py); x.rotate(rot || 0); x.scale(s, s); fn(); x.restore() }
+
+// 当たりの瞬間に画面を揺らす
+const HITS = [[0.62, 22], [1.45, 16], [3.02, 18], [4.36, 26], [5.72, 28], [7.82, 30], [11.42, 16], [12.95, 20]]
+function shake(t) {
+  let dx = 0, dy = 0
+  for (const [h, a] of HITS) if (t >= h && t < h + .45) {
+    const k = a * Math.exp(-(t - h) * 11)
+    dx += k * Math.sin((t - h) * 95); dy += k * Math.cos((t - h) * 77)
+  }
+  return [dx, dy]
+}
+
+// はじける粒（色つきの丸・三角・？）
+function burst(t, t0, cx, cy, n, seed, colors, { speed = 900, life = .9, size = 22, marks = false } = {}) {
+  const p = seg(t, t0, t0 + life); if (p <= 0 || p >= 1) return
+  const r = rng(seed)
+  for (let i = 0; i < n; i++) {
+    const ang = r() * Math.PI * 2, sp = speed * (.4 + r() * .8), sz = size * (.5 + r()), col = colors[i % colors.length], kind = r()
+    const d = outExpo(p) * sp * life
+    const px = cx + Math.cos(ang) * d, py = cy + Math.sin(ang) * d + 260 * p * p
+    x.save(); x.globalAlpha = 1 - inCubic(p); x.translate(px, py); x.rotate(ang + p * 6)
+    x.fillStyle = col
+    if (marks && kind < .45) { font(sz * 2.2, 'DG'); x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('？', 0, 0) }
+    else if (kind < .7) { x.beginPath(); x.arc(0, 0, sz / 2, 0, 7); x.fill() }
+    else { x.beginPath(); x.moveTo(0, -sz * .6); x.lineTo(sz * .55, sz * .4); x.lineTo(-sz * .55, sz * .4); x.closePath(); x.fill() }
+    x.restore()
+  }
+}
+
+// 集中線
+function speedLines(t, cx, cy, color, alpha, seed, n = 90) {
+  if (alpha <= 0) return
+  const r = rng(seed + Math.floor(t * 24))
+  x.save(); x.globalAlpha = alpha; x.fillStyle = color
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + r() * .05, inner = 430 + r() * 260, outer = 1400, w = .006 + r() * .012
+    x.beginPath()
+    x.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner)
+    x.lineTo(cx + Math.cos(a - w) * outer, cy + Math.sin(a - w) * outer)
+    x.lineTo(cx + Math.cos(a + w) * outer, cy + Math.sin(a + w) * outer)
+    x.closePath(); x.fill()
+  }
+  x.restore()
+}
+
+// ギリシャの雷文（上下の帯）
+function meander(y, offset, color, alpha) {
+  x.save(); x.globalAlpha = alpha; x.strokeStyle = color; x.lineWidth = 6; x.lineCap = 'square'
+  const u = 18, step = u * 4
+  for (let sx = -step + (offset % step); sx < W + step; sx += step) {
+    x.beginPath()
+    x.moveTo(sx, y + u * 2); x.lineTo(sx, y); x.lineTo(sx + u * 3, y); x.lineTo(sx + u * 3, y + u * 2)
+    x.lineTo(sx + u, y + u * 2); x.lineTo(sx + u, y + u); x.lineTo(sx + u * 2, y + u)
+    x.moveTo(sx + u * 3, y + u * 2); x.lineTo(sx + u * 4, y + u * 2)
+    x.stroke()
+  }
+  x.restore()
+}
+
+// ---------- ソクラテスの胸像（原点は首の付け根） ----------
+function socrates(mood, blink) {
+  const ink = C.navy, stone = '#f4f7ff', shade = '#d6e2f7'
+  x.lineJoin = 'round'; x.lineCap = 'round'; x.lineWidth = 9; x.strokeStyle = ink
+  // 台座
+  x.fillStyle = C.yellow; rr(-230, 330, 460, 92, 14); x.fill(); x.stroke()
+  text('ΣΩΚΡΑΤΗΣ', 0, 378, 46, { fam: 'DG', color: C.navy })
+  // 衣（片方の肩にかける布）
+  x.fillStyle = stone
+  x.beginPath(); x.moveTo(-70, 70); x.bezierCurveTo(-170, 110, -250, 160, -262, 330); x.lineTo(262, 330)
+  x.bezierCurveTo(250, 160, 170, 110, 70, 70); x.closePath(); x.fill(); x.stroke()
+  x.fillStyle = shade
+  x.beginPath(); x.moveTo(-235, 190); x.bezierCurveTo(-60, 210, 90, 260, 200, 330); x.lineTo(110, 330); x.bezierCurveTo(30, 280, -90, 250, -246, 250); x.closePath(); x.fill()
+  x.beginPath(); x.moveTo(-235, 190); x.bezierCurveTo(-60, 210, 90, 260, 200, 330); x.stroke()
+  x.beginPath(); x.moveTo(-246, 250); x.bezierCurveTo(-90, 250, 30, 280, 110, 330); x.stroke()
+  // 首
+  x.fillStyle = stone; rr(-52, 20, 104, 80, 20); x.fill(); x.stroke()
+  // 耳
+  for (const s of [-1, 1]) { x.beginPath(); x.ellipse(s * 112, -95, 22, 34, 0, 0, 7); x.fill(); x.stroke() }
+  // 頭（はげ頭）
+  x.beginPath(); x.ellipse(0, -110, 112, 128, 0, 0, 7); x.fill(); x.stroke()
+  x.save(); x.globalAlpha = .9; x.fillStyle = C.white; x.beginPath(); x.ellipse(-38, -190, 38, 18, -.4, 0, 7); x.fill(); x.restore()
+  // 横の巻き毛
+  for (const s of [-1, 1]) for (let i = 0; i < 3; i++) {
+    x.beginPath(); x.arc(s * (100 + (i === 1 ? 10 : 0)), -150 + i * 26, 17, 0, 7); x.fill(); x.stroke()
+  }
+  // ひげ（巻き毛の集まり）
+  x.fillStyle = stone
+  x.beginPath(); x.moveTo(-104, -70); x.bezierCurveTo(-112, 30, -60, 70, 0, 74); x.bezierCurveTo(60, 70, 112, 30, 104, -70)
+  x.bezierCurveTo(60, -30, -60, -30, -104, -70); x.fill()
+  const curls = [[-96, -48], [-90, -6], [-68, 30], [-34, 52], [0, 60], [34, 52], [68, 30], [90, -6], [96, -48], [-52, -2], [-14, 20], [22, 18], [56, -2]]
+  for (const [cx, cy] of curls) { x.beginPath(); x.arc(cx, cy, 24, 0, 7); x.fill(); x.stroke() }
+  // 口ひげ
+  x.beginPath(); x.ellipse(-30, -44, 34, 16, .25, 0, 7); x.fill(); x.stroke()
+  x.beginPath(); x.ellipse(30, -44, 34, 16, -.25, 0, 7); x.fill(); x.stroke()
+  // 鼻（だんご鼻）
+  x.beginPath(); x.moveTo(-6, -118); x.quadraticCurveTo(-14, -90, -30, -76); x.quadraticCurveTo(0, -60, 30, -76); x.quadraticCurveTo(14, -90, 6, -118); x.fill(); x.stroke()
+  // まゆ・目
+  x.lineWidth = 10
+  const browLift = mood === 'puzzled' ? 14 : 0
+  x.beginPath(); x.moveTo(-74, -150 - browLift); x.quadraticCurveTo(-46, -166 - browLift, -20, -152); x.stroke()
+  x.beginPath(); x.moveTo(74, -150 + (mood === 'puzzled' ? 6 : 0)); x.quadraticCurveTo(46, -166, 20, -152); x.stroke()
+  x.fillStyle = ink
+  if (mood === 'happy') {
+    for (const s of [-1, 1]) { x.beginPath(); x.arc(s * 46, -116, 16, Math.PI * 1.1, Math.PI * 1.9); x.stroke() }
+  } else if (blink) {
+    for (const s of [-1, 1]) { x.beginPath(); x.moveTo(s * 46 - 14, -122); x.lineTo(s * 46 + 14, -122); x.stroke() }
+  } else {
+    const r = mood === 'puzzled' ? 10 : 12
+    for (const s of [-1, 1]) { x.beginPath(); x.arc(s * 46, -122, r, 0, 7); x.fill() }
+  }
+}
+
+// ---------- 場面 ----------
+function bg(color) { x.fillStyle = color; x.fillRect(-60, -60, W + 120, H + 120) }
+
+// 1. 「？」が落ちてくる
+function scene1(t) {
+  bg(C.night)
+  // 星のような点
+  const r = rng(7); x.fillStyle = C.white
+  for (let i = 0; i < 70; i++) { x.globalAlpha = .15 + .25 * (0.5 + 0.5 * Math.sin(t * 3 + i)); x.beginPath(); x.arc(r() * W, r() * H, 1.5 + r() * 2.5, 0, 7); x.fill() }
+  x.globalAlpha = 1
+  const cx = 960, cy = 420
+  // 落下 → つぶれて弾む
+  const fall = seg(t, 0, .62), y = lerp(-300, cy, inCubic(fall))
+  const sq = t > .62 ? Math.exp(-(t - .62) * 7) * Math.sin((t - .62) * 26) : 0
+  const sx = 1 + sq * .28, sy = 1 - sq * .28
+  // 着地の波紋
+  for (let i = 0; i < 3; i++) {
+    const p = seg(t, .62 + i * .1, 1.5 + i * .1); if (p <= 0 || p >= 1) continue
+    x.save(); x.globalAlpha = 1 - p; x.strokeStyle = [C.apricot, C.yellow, C.blue][i]; x.lineWidth = 8 * (1 - p) + 2
+    x.beginPath(); x.ellipse(cx, cy + 160, 120 + p * 700, 30 + p * 180, 0, 0, 7); x.stroke(); x.restore()
+  }
+  withT(cx, y + 150, 1, 0, () => { x.scale(sx, sy); text('？', 0, -150, 380, { fam: 'DG', color: C.apricot, shadow: { color: C.blue, dx: 16, dy: 16 } }) })
+  burst(t, .62, cx, cy, 34, 11, [C.yellow, C.apricot, C.white, '#6f8ff0'], { marks: true, speed: 1100 })
+  // 文字
+  const a = seg(t, .85, 1.15)
+  text('それ、ほんとうに', 960, 720, 64, { weight: 700, color: C.pale, alpha: a })
+  const b = seg(t, 1.4, 1.7)
+  if (b > 0) withT(960, 850, outBack(b, 2.6), 0, () => text('知ってる？', 0, 0, 150, { fam: 'DG', color: C.yellow, shadow: { color: C.blue, dx: 10, dy: 10 } }))
+}
+
+// 2〜3. 2400年前へ → ソクラテス → お告げ → 不知の自覚
+function sceneGreek(t) {
+  bg(C.blue)
+  // 光の筋
+  x.save(); x.translate(1300, -200); x.rotate(t * .12)
+  x.fillStyle = 'rgba(255,255,255,0.06)'
+  for (let i = 0; i < 12; i++) { x.rotate(Math.PI / 6); x.beginPath(); x.moveTo(0, 0); x.lineTo(-90, 2200); x.lineTo(90, 2200); x.closePath(); x.fill() }
+  x.restore()
+  const band = seg(t, 2.25, 2.6)
+  meander(40 - (1 - outCubic(band)) * 120, t * 160, C.yellow, .9)
+  meander(H - 76 + (1 - outCubic(band)) * 120, -t * 160, C.yellow, .9)
+
+  // 年号が巻き戻る
+  const roll = seg(t, 2.3, 3.0), goLeft = outCubic(seg(t, 3.15, 3.55)), gone = seg(t, 3.95, 4.2)
+  if (gone < 1) {
+    const year = Math.round(lerp(2026, -400, inOutCubic(roll)))
+    const label = year > 0 ? `${year}年` : year === 0 ? '0年' : `紀元前${-year}年`
+    const done = roll >= 1
+    const gx = lerp(960, 560, goLeft), gy = lerp(560, 520, goLeft), gs = lerp(1, .62, goLeft)
+    withT(gx, gy - gone * 500, gs, 0, () => {
+      text('いまから', 0, -230, 56, { weight: 700, color: C.pale, alpha: seg(t, 2.3, 2.5) })
+      // 回っている間は前後の数字を残像にする
+      if (!done && roll > 0) for (const k of [-1, 1]) text(String(Math.abs(year + k * 37)), 0, k * 150, 200, { fam: 'DG', color: C.white, alpha: .18 })
+      const pop = done ? outBack(seg(t, 3.0, 3.2), 3) : 1
+      withT(0, 0, done ? lerp(1.25, 1, pop) : 1, 0, () => text(done ? '紀元前400年ごろ' : label, 0, 0, done ? 150 : 200, { fam: 'DG', color: done ? C.yellow : C.white, shadow: { color: C.blueDeep, dx: 10, dy: 10 } }))
+      text('約2400年前の ギリシャ', 0, 170, 62, { color: C.white, alpha: seg(t, 3.05, 3.3) })
+      // 名札
+      const tag = seg(t, 3.55, 3.8)
+      if (tag > 0) withT(0, 340, outBack(tag, 2.4), 0, () => { x.fillStyle = C.navy; rr(-300, -62, 600, 124, 62); x.fill(); text('ソクラテス', 0, 2, 80, { color: C.yellow }) })
+    })
+  }
+
+  // 胸像
+  const rise = seg(t, 3.25, 3.85)
+  if (rise > 0) {
+    const toLeft = inOutCubic(seg(t, 4.0, 4.4))
+    const bx = lerp(1360, 500, toLeft), by = 610 + (1 - outBack(rise, 1.4)) * 900
+    const s = .88
+    const puzzled = t > 4.85 && t < 5.7, happy = t >= 5.7
+    const tilt = puzzled ? Math.sin(seg(t, 4.85, 5.0) * Math.PI / 2) * -.12 : happy ? Math.sin((t - 5.7) * 9) * .04 * Math.exp(-(t - 5.7) * 3) : 0
+    // 後ろの光の輪
+    x.save(); x.globalAlpha = outCubic(rise) * .9; x.fillStyle = C.yellow
+    x.beginPath(); x.arc(bx, by - 120 * s, 330 * s * outBack(rise), 0, 7); x.fill(); x.restore()
+    withT(bx, by, s, tilt, () => socrates(happy ? 'happy' : puzzled ? 'puzzled' : 'calm', t > 3.9 && t < 3.98))
+    // 首をかしげる「？」
+    if (puzzled) for (let i = 0; i < 3; i++) {
+      const p = seg(t, 4.95 + i * .1, 5.15 + i * .1), fade = 1 - seg(t, 5.55, 5.7)
+      if (p > 0) withT(bx + (-120 + i * 120) * s, by - 420 * s - i * 20, outBack(p, 3) * fade, (i - 1) * .25, () => text('？', 0, 0, 110, { fam: 'DG', color: C.white, shadow: { color: C.navy, dx: 6, dy: 6 } }))
+    }
+  }
+
+  // お告げ
+  const rx = 1290
+  const oracleIn = seg(t, 4.2, 4.36), oracleOut = seg(t, 5.3, 5.45)
+  if (oracleIn > 0 && oracleOut < 1) {
+    x.save(); x.globalAlpha = 1 - oracleOut; x.translate(0, -oracleOut * 80)
+    const pill = outBack(seg(t, 4.15, 4.35), 2.5)
+    withT(rx, 290, pill, 0, () => { x.fillStyle = C.yellow; rr(-190, -42, 380, 84, 42); x.fill(); text('✦ 神さまのお告げ ✦', 0, 2, 44, { color: C.navy }) })
+    const st = 1 + (1 - outCubic(oracleIn)) * .8
+    withT(rx, 500, st, 0, () => {
+      x.globalAlpha *= oracleIn
+      text('「ソクラテスより', 0, -80, 92, { color: C.white, shadow: { color: C.blueDeep, dx: 8, dy: 8 } })
+      text('賢い者はいない」', 0, 50, 92, { color: C.yellow, shadow: { color: C.blueDeep, dx: 8, dy: 8 } })
+    })
+    text('「そんなはずはない…」', rx, 720, 54, { weight: 700, color: C.pale, alpha: seg(t, 4.9, 5.1) })
+    x.restore()
+  }
+  burst(t, 4.36, rx, 500, 26, 21, [C.yellow, C.white], { speed: 800, size: 18 })
+
+  // 知らないことを、知っている。
+  const k1 = seg(t, 5.42, 5.62), k2 = seg(t, 5.72, 5.9)
+  if (k1 > 0) {
+    withT(rx, 400 + (1 - outCubic(k1)) * 60, 1, 0, () => text('知らないことを、', 0, 0, 100, { color: C.white, alpha: k1, shadow: { color: C.blueDeep, dx: 8, dy: 8 } }))
+  }
+  if (k2 > 0) {
+    withT(rx, 580, lerp(1.7, 1, outBack(k2, 2)), -.03 * (1 - k2), () => text('知っている。', 0, 0, 150, { fam: 'DG', color: C.yellow, shadow: { color: C.navy, dx: 12, dy: 12 } }))
+    burst(t, 5.72, rx, 580, 40, 31, [C.yellow, C.apricot, C.white], { speed: 1200 })
+    const n = seg(t, 6.0, 6.2)
+    if (n > 0) withT(rx, 760, n, 0, () => { x.fillStyle = 'rgba(22,34,58,0.55)'; rr(-260, -38, 520, 76, 38); x.fill(); text('＝ 不知の自覚（ふちのじかく）', 0, 2, 40, { weight: 700, color: C.white }) })
+  }
+}
+
+// 4. 「わからない」は、考えはじめた合図
+function scene4(t) {
+  bg(C.yellow)
+  // 網点
+  x.fillStyle = 'rgba(255,176,138,0.35)'
+  for (let gy = 0; gy < H; gy += 36) for (let gx = (gy / 36) % 2 ? 18 : 0; gx < W; gx += 36) {
+    const d = Math.hypot(gx - 960, gy - 540) / 1100
+    x.beginPath(); x.arc(gx, gy, 2 + d * 7, 0, 7); x.fill()
+  }
+  const lines = seg(t, 7.78, 7.9) * (1 - seg(t, 8.9, 9.2))
+  speedLines(t, 960, 640, C.navy, lines * .85, 5)
+  // わからない（1字ずつ落ちる）
+  const word = 'わからない', up = inOutCubic(seg(t, 7.3, 7.6))
+  const wy = lerp(520, 300, up), ws = lerp(1, .5, up)
+  withT(960, wy, ws, 0, () => {
+    font(250, 'DG'); const cw = 250
+    for (let i = 0; i < word.length; i++) {
+      const p = seg(t, 6.72 + i * .07, 6.98 + i * .07)
+      if (p <= 0) continue
+      const dy = (1 - outBack(p, 2.2)) * -500
+      text(word[i], (i - 2) * cw, dy, 250, { fam: 'DG', color: C.navy, shadow: { color: C.apricot, dx: 12, dy: 12 }, alpha: clamp(p * 3) })
+    }
+  })
+  text('って言えたら、', 960, 430, 60, { weight: 700, color: C.navy, alpha: seg(t, 7.45, 7.65) })
+  const a = seg(t, 7.6, 7.78), b = seg(t, 7.82, 7.98)
+  if (a > 0) withT(960, 590 + (1 - outCubic(a)) * 50, 1, 0, () => text('考えはじめた', 0, 0, 140, { color: C.navy, alpha: a }))
+  if (b > 0) {
+    const pulse = 1 + Math.sin((t - 8) * 8) * .02 * (t > 8.1 ? 1 : 0)
+    withT(960, 790, lerp(1.9, 1, outBack(b, 2.4)) * pulse, -.04, () => text('合図だ！', 0, 0, 230, { fam: 'DG', color: C.blue, shadow: { color: C.apricot, dx: 14, dy: 14 }, stroke: { color: C.white, width: 16 } }))
+    burst(t, 7.82, 960, 790, 46, 41, [C.blue, C.apricot, C.white, C.navy], { speed: 1300, marks: true })
+  }
+}
+
+// 5. 問いの紙が集まり、返事がつながる
+const NOTES = [
+  ['幸せってなに？', 300, 210, -.08, C.white],
+  ['ふつうって\nなんだろう？', 960, 150, .04, C.yellow],
+  ['なんで勉強するの？', 1620, 220, .07, C.apricotPale],
+  ['人は1人では\n生きていけないの？', 230, 560, .05, C.yellow],
+  ['自分らしさって\nなに？', 1700, 560, -.06, C.white],
+  ['大人になるって\nどういうこと？', 330, 900, -.04, C.apricotPale],
+  ['友だちって\n何人いればいい？', 1600, 900, .05, C.yellow],
+  ['幸せな家庭ってなに？', 960, 960, -.03, C.white],
+]
+const REPLIES = [[0, 'ぼくはこう思う', 1], [2, 'わからない、けど…', 0], [3, '経験から言うとね', 1], [4, 'いい問いだなあ', 0], [6, '人によってちがうよ', 1], [1, '大学生の返事', 0]]
+function note(str, color) {
+  const lines = str.split('\n'); font(44, 'ZM', 700)
+  const w = Math.max(...lines.map(l => x.measureText(l).width)) + 64, h = lines.length > 1 ? 190 : 130
+  x.save(); x.shadowColor = 'rgba(36,79,199,0.18)'; x.shadowBlur = 24; x.shadowOffsetY = 10
+  x.fillStyle = color; rr(-w / 2, -h / 2, w, h, 10); x.fill(); x.restore()
+  x.fillStyle = 'rgba(36,79,199,0.25)'; x.fillRect(-60, -h / 2 - 14, 120, 30)
+  lines.forEach((l, i) => text(l, 0, (i - (lines.length - 1) / 2) * 58, 44, { weight: 700, color: C.navy }))
+}
+function scene5(t) {
+  bg(C.pale)
+  x.strokeStyle = '#d4e3f5'; x.lineWidth = 2
+  for (let gx = 0; gx < W; gx += 60) { x.beginPath(); x.moveTo(gx, 0); x.lineTo(gx, H); x.stroke() }
+  for (let gy = 0; gy < H; gy += 60) { x.beginPath(); x.moveTo(0, gy); x.lineTo(W, gy); x.stroke() }
+  const zoom = lerp(1.0, .9, inOutCubic(seg(t, 9.3, 12.4)))
+  x.save(); x.translate(960, 540); x.scale(zoom, zoom); x.translate(-960, -540)
+  // 返事の線と吹き出し
+  REPLIES.forEach(([ni, msg, side], i) => {
+    const p = seg(t, 10.5 + i * .12, 10.8 + i * .12); if (p <= 0) return
+    const [, nx, ny] = NOTES[ni]
+    const ex = lerp(nx, 960, .5) + (side ? 40 : -40), ey = lerp(ny, 540, .5) + (ny < 540 ? 40 : -40)
+    x.save(); x.strokeStyle = C.blue; x.lineWidth = 5; x.setLineDash([4, 14]); x.lineCap = 'round'
+    x.beginPath(); x.moveTo(nx, ny); x.lineTo(lerp(nx, ex, outCubic(p)), lerp(ny, ey, outCubic(p))); x.stroke(); x.restore()
+    const q = seg(t, 10.7 + i * .12, 10.95 + i * .12)
+    if (q > 0) withT(ex, ey, outBack(q, 2.6), 0, () => {
+      font(34, 'ZM', 700); const w = x.measureText(msg).width + 56
+      x.fillStyle = side ? C.blue : C.apricot; rr(-w / 2, -34, w, 68, 34); x.fill()
+      text(msg, 0, 2, 34, { weight: 700, color: side ? C.white : C.navy })
+    })
+  })
+  // 紙
+  NOTES.forEach(([str, nx, ny, rot, col], i) => {
+    const p = seg(t, 9.35 + i * .1, 9.75 + i * .1); if (p <= 0) return
+    const from = i % 2 ? 1 : -1, e = outBack(p, 1.6)
+    const px = lerp(nx + from * 1300, nx, e), py = lerp(ny - 300, ny, e)
+    const bob = Math.sin(t * 2 + i) * 4
+    withT(px, py + bob, 1, rot + (1 - e) * from * .6, () => note(str, col))
+  })
+  x.restore()
+  // 見え方が、ふえる。
+  const c = seg(t, 11.3, 11.48)
+  if (c > 0) withT(960, 540, lerp(1.6, 1, outBack(c, 2)), 0, () => {
+    x.save(); x.shadowColor = 'rgba(32,48,71,0.25)'; x.shadowBlur = 40; x.shadowOffsetY = 14
+    x.fillStyle = C.white; rr(-480, -96, 960, 192, 96); x.fill(); x.restore()
+    text('見え方が、ふえる。', 0, 4, 100, { fam: 'DG', color: C.blue, shadow: { color: C.apricotPale, dx: 8, dy: 8 } })
+  })
+  burst(t, 11.42, 960, 540, 30, 51, [C.blue, C.apricot, C.yellow], { speed: 1000 })
+}
+
+// 6. しめ
+function mark(halfLeftX, halfRightX, s) {
+  x.save(); x.scale(s, s); x.translate(-32, -32)
+  x.save(); x.translate(halfLeftX, 0); x.fillStyle = C.blue
+  x.fill(new Path2D('M12 33c0-9 6-16.5 14.5-16.5 4.2 0 6.5 2.2 6.5 5.8 0 3.4-2.4 5.2-4.6 7.2-2.6 2.4-4.2 4.4-4.2 8 0 3.6 2 6 5 7.6C19.6 46.6 12 42.4 12 33z')); x.restore()
+  x.save(); x.translate(halfRightX, 0); x.fillStyle = C.apricot
+  x.fill(new Path2D('M52 30.5c0 9.5-6.4 17.5-15.2 17.5-4.4 0-6.8-2.4-6.8-6.1 0-3.6 2.5-5.5 4.9-7.6 2.7-2.5 4.4-4.6 4.4-8.4 0-3.8-2.1-6.3-5.2-8C44.2 16.2 52 20.6 52 30.5z')); x.restore()
+  x.restore()
+}
+function scene6(t) {
+  bg(C.white)
+  // 薄い紙の丸
+  x.save(); x.globalAlpha = .7
+  x.fillStyle = C.pale; x.beginPath(); x.arc(240, 860, 260, 0, 7); x.fill()
+  x.fillStyle = '#fff4cc'; x.beginPath(); x.arc(1720, 200, 220, 0, 7); x.fill()
+  x.restore()
+  const m = outCubic(seg(t, 12.55, 12.95))
+  const off = (1 - m) * 160
+  withT(960, 330, 6.2, 0, () => mark(-off, off, 1))
+  for (let i = 0; i < 2; i++) {
+    const p = seg(t, 12.95 + i * .08, 13.7 + i * .08); if (p <= 0 || p >= 1) continue
+    x.save(); x.globalAlpha = 1 - p; x.strokeStyle = i ? C.apricot : C.blue; x.lineWidth = 10 * (1 - p) + 2
+    x.beginPath(); x.arc(960, 330, 150 + p * 260, 0, 7); x.stroke(); x.restore()
+  }
+  burst(t, 12.95, 960, 330, 22, 61, [C.blue, C.apricot, C.yellow], { speed: 700, size: 16 })
+  const a = seg(t, 13.1, 13.35)
+  if (a > 0) withT(960, 580 + (1 - outCubic(a)) * 40, 1, 0, () => text('Miacis 問いコーナー', 0, 0, 104, { color: C.navy, alpha: a }))
+  // 一文字ずつ出す
+  const tag = '問いは、世界の見方をふやす。', n = Math.floor(seg(t, 13.4, 13.95) * tag.length)
+  text(tag.slice(0, n), 960, 690, 54, { weight: 700, color: C.muted })
+  const c = seg(t, 13.95, 14.2)
+  if (c > 0) withT(960, 830, outElastic(c), 0, () => {
+    x.fillStyle = C.blue; rr(-400, -60, 800, 120, 60); x.fill()
+    text('きみの「？」、書きにきて。', 0, 3, 54, { color: C.white })
+  })
+  text('山梨県韮崎市 青少年育成プラザ Miacis（ミアキス）', 960, 1000, 28, { weight: 700, color: C.muted, alpha: seg(t, 14.2, 14.45) })
+}
+
+// ---------- つなぎ ----------
+function circleWipe(t, t0, t1, cx, cy, color) {
+  const p = inOutCubic(seg(t, t0, t1)); if (p <= 0 || t >= t1) return
+  x.fillStyle = color; x.beginPath(); x.arc(cx, cy, p * 2300, 0, 7); x.fill()
+}
+function bandWipe(t, t0, t1, colors) {
+  const p = seg(t, t0, t1); if (p <= 0 || p >= 1) return
+  colors.forEach((col, i) => {
+    const q = inOutCubic(clamp(p * 1.6 - i * .2)), off = lerp(-2600, 2600, q)
+    x.save(); x.translate(960 + off, 540); x.rotate(-.35); x.fillStyle = col; x.fillRect(-900, -1400, 1800, 2800); x.restore()
+  })
+}
+
+function frame(t) {
+  x.setTransform(1, 0, 0, 1, 0, 0)
+  const [dx, dy] = shake(t)
+  x.translate(dx, dy)
+  if (t < 2.2) scene1(t)
+  else if (t < 6.6) sceneGreek(t)
+  else if (t < 9.3) scene4(t)
+  else if (t < 12.4) scene5(t)
+  else scene6(t)
+  circleWipe(t, 1.95, 2.25, 960, 420, C.blue)
+  if (t >= 2.2 && t < 2.45) { x.globalAlpha = 1 - seg(t, 2.2, 2.45); bg(C.blue); x.globalAlpha = 1 }
+  bandWipe(t, 6.3, 6.9, [C.apricot, C.navy, C.yellow])
+  if (t > 9.0 && t < 9.3) { const p = inOutCubic(seg(t, 9.0, 9.3)); x.fillStyle = C.pale; x.fillRect(-60, H + 60 - p * (H + 120), W + 120, H + 120) }
+  circleWipe(t, 12.15, 12.45, 960, 540, C.white)
+  if (t >= 12.4 && t < 12.55) { x.globalAlpha = 1 - seg(t, 12.4, 12.55); bg(C.white); x.globalAlpha = 1 }
+}
+
+// ---------- 時計 ----------
+const fixed = new URLSearchParams(location.search).get('t')
+const chars = '？それほんとうに知ってるいまから約年前のギリシャ紀元前ごろソクラテス神さまのお告げより賢い者はないそんなずはい…らことを、知っている。＝不知自覚ふちじかくわからないって言えたら考えはじめた合図だ！見え方がふえる幸せなにつうろう勉強す人1では生きていけ自分しさ大になどういう友何いばい家庭ぼくこ思わけど経験言とね問よちが学返事Miacis問いコーナー世界の見方やすきみ書に山梨県韮崎市青少年育成プラザミアキス「」（）0123456789✦'
+const ready = Promise.all([
+  document.fonts.load(`900 100px ZM`, chars), document.fonts.load(`700 100px ZM`, chars), document.fonts.load(`100px DG`, chars),
+])
+ready.then(() => {
+  if (fixed !== null) { frame(Number(fixed)); return }
+  const T0 = performance.now()
+  frame(0)
+  const loop = () => { frame(Math.min(DURATION, (performance.now() - T0) / 1000)); requestAnimationFrame(loop) }
+  requestAnimationFrame(loop)
+})
+</script>
+</body>
+</html>
