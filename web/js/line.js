@@ -4,13 +4,31 @@
 // → LINE にログインして ID トークンを受け取る → watch_question で、この問いの返事を待つ。
 // LINE の名前やプロフィールは受け取らない（openid だけ）。
 
-// にらレバのプロバイダーの LINE ログインのチャネルに作る LIFF。空のあいだは LINE のボタンを出さない
-export const LIFF_ID = "";
+// LINE ログインのチャネル「問いサイト 問う応える」（2011959095・プロバイダー「記録形」= 公式LINE「にらレバ_西村」と同じ）の LIFF
+export const LIFF_ID = "2011959095-ypYa664R";
+// 試しのあいだは、?linetest で開いた端末にだけボタンを出す（みんなに出すときに true にする）
+export const LINE_PUBLIC = false;
+const TEST_KEY = "toi.line_test";
 // 公式LINE「にらレバ_西村」を友だちに足すリンク（友だちでないと LINE は届かない）
 export const FRIEND_URL = "https://line.me/R/ti/p/@914vzoom";
 const LIFF_SDK = "https://static.line-scdn.net/liff/edge/2/sdk.js";
 
-export const lineReady = () => Boolean(LIFF_ID);
+// ?linetest で開いたら、この端末を試しの端末にする（読み込んだときに1回）
+try {
+  if (typeof location !== "undefined" && new URLSearchParams(location.search).has("linetest")) localStorage.setItem(TEST_KEY, "1");
+} catch {
+  // localStorage が使えない
+}
+
+export function lineReady() {
+  if (!LIFF_ID) return false;
+  if (LINE_PUBLIC) return true;
+  try {
+    return localStorage.getItem(TEST_KEY) === "1" || Boolean(watchRequest());
+  } catch {
+    return false;
+  }
+}
 
 /** 「LINE で知らせてもらう」のリンク。LINE の中でも外でも開ける */
 export const watchUrl = (questionId) => `https://liff.line.me/${LIFF_ID}?watch=${encodeURIComponent(questionId)}`;
