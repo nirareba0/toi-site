@@ -162,6 +162,20 @@ export async function getPublicQuestionsByIds(ids = []) {
  * @param {string} [params.nickname]
  * @param {string|null} [params.theme_id]
  */
+/**
+ * この問いの返事を LINE で待つ（supabase/line-notify.sql の watch_question）。
+ * DB が LINE のサーバーで ID トークンを確かめる。問いと LINE の ID のつながりは公開されない
+ * @param {string} questionId
+ * @param {string} idToken LIFF の ID トークン
+ */
+export async function watchQuestion(questionId, idToken) {
+  if (!sb) {
+    throw new Error("Supabase の接続設定が未完了です。config.js を設定してください。");
+  }
+  const { error } = await sb.rpc("watch_question", { p_question_id: questionId, p_id_token: idToken });
+  if (error) throw error;
+}
+
 export async function postQuestion({ id, body, nickname = "", theme_id = null }) {
   if (!sb) {
     throw new Error("Supabase の接続設定が未完了です。config.js を設定してください。");

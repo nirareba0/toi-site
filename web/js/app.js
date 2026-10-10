@@ -31,8 +31,10 @@ import {
   listQuestions,
   getQuestion,
   getPublicQuestionsByIds,
-  postQuestion
+  postQuestion,
+  watchQuestion
 } from "./api.js";
+import { lineReady, watchUrl, watchRequest, lineIdToken, FRIEND_URL } from "./line.js";
 
 // アプリケーション状態
 const state = createInitialState();
@@ -705,6 +707,10 @@ function renderReceipt(questionId) {
         </div>
 
         <div class="receipt-actions">
+          ${lineReady() ? `
+          <a href="${watchUrl(questionId)}" class="btn btn-line btn-block">
+            返事がきたら LINE で知らせてもらう
+          </a>` : ""}
           <a href="#inbox" class="btn btn-primary btn-block">
             自分への返事を見に行く
           </a>
@@ -802,6 +808,9 @@ async function renderInbox() {
                 ` : `
                   <span class="inbox-status-tag">確認中（まだ公開されていません）</span>
                 `}
+                ${lineReady() && q.status !== "answered" ? `
+                  <a href="${watchUrl(q.id)}" class="btn btn-line btn-sm">LINE で知らせてもらう</a>
+                ` : ""}
                 <button type="button" class="btn btn-outline btn-sm btn-remove-local" data-id="${q.id}">
                   一覧から消す
                 </button>
@@ -1303,8 +1312,63 @@ function renderFooterLinks() {
 
 async function boot() {
   renderFooterLinks();
+  const watching = watchRequest();
+  if (watching && lineReady()) {
+    await renderWatch(watching);
+    return;
+  }
   await syncData();
   await handleRouting();
+}
+
+/**
+ * 「返事がきたら LINE で知らせてもらう」で開かれた（LIFF・?watch=<問いの id>）
+ * LINE にログインして、この問いの返事を待つ。知らせは公式LINE「にらレバ_西村」から届く
+ * @param {string} questionId
+ */
+async function renderWatch(questionId) {
+  mainContainer.innerHTML = `
+    <div class="receipt-container">
+      <div class="receipt-card" aria-live="polite">
+        <h1 id="watch-heading" class="receipt-title" tabindex="-1">LINE につないでいます…</h1>
+      </div>
+    </div>
+  `;
+  let ok = false;
+  let message = "";
+  try {
+    const idToken = await lineIdToken();
+    await watchQuestion(questionId, idToken);
+    ok = true;
+  } catch (e) {
+    console.error(e);
+    const code = String(e?.message || "");
+    message = code.includes("question_not_found") ? "この問いが見つかりませんでした。"
+      : code.includes("too_many_watches") ? "LINE で待てる問いは 50 までです。"
+      : "LINE で確かめられませんでした。少し待ってから、もう一度ボタンを押してください。";
+  }
+  history.replaceState(null, "", location.pathname);
+  mainContainer.innerHTML = `
+    <div class="receipt-container">
+      <div class="receipt-card paper-settle-animation">
+        <h1 id="watch-heading" class="receipt-title" tabindex="-1">${ok ? "返事がきたら LINE で知らせます" : "うまくいきませんでした"}</h1>
+        ${ok ? `
+          <p class="receipt-status-text">公式LINE「にらレバ」から届きます</p>
+          <p class="receipt-sub-notice">届くのは「返事が届いた」とリンクだけ。問いの中身は LINE に出しません。<br>
+            にらレバを友だちにしていないと届きません。</p>
+        ` : `<p class="receipt-status-text">${escapeHtml(message)}</p>`}
+        <div class="receipt-actions">
+          ${ok ? `<a href="${FRIEND_URL}" class="btn btn-line btn-block">にらレバを友だちに追加</a>` : ""}
+          <a href="#inbox" class="btn btn-primary btn-block">自分への返事を見る</a>
+          <a href="#home" class="btn btn-secondary btn-block">みんなの問いへ</a>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById("watch-heading")?.focus();
+  announce(ok ? "返事がきたら LINE で知らせます" : "うまくいきませんでした");
+  // ここから先のボタンはふつうの画面へ（hashchange で handleRouting が動く）
+  syncData().catch(() => {});
 }
 
 // api.js がトップレベル await を持つため、このモジュールの評価は DOMContentLoaded より

@@ -1097,6 +1097,23 @@ body {
   font-weight: 600;
 }
 
+/* LINE で知らせる（line.js） */
+.btn-line {
+  background-color: #06c755;
+  border-color: #06c755;
+  color: #fff;
+}
+/* 自分への返事のカードでは、LINE のボタンを1行に置く */
+.inbox-card-actions { flex-wrap: wrap; }
+.inbox-card-actions .btn-line { order: 3; flex-basis: 100%; }
+
+.btn-line:hover,
+.btn-line:focus-visible {
+  background-color: #05b04b;
+  border-color: #05b04b;
+  color: #fff;
+}
+
 .receipt-actions {
   display: flex;
   flex-direction: column;
