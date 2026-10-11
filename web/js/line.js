@@ -1,16 +1,17 @@
 // web/js/line.js
-// 問いに返事がきたら LINE で知らせる（supabase/line-notify.sql）。知らせは公式LINE「にらレバ_西村」から届く。
+// 問いに返事がきたら LINE で知らせる（supabase/line-notify.sql）。知らせは中高生向けの公式LINE「問う応える」（@803ifgkb・運営 たいど）から届く。
 // 問いを出した人が「LINE で知らせてもらう」を押す → LIFF（LINE の中のブラウザ）でこのサイトが ?watch=<問いの id> で開く
 // → LINE にログインして ID トークンを受け取る → watch_question で、この問いの返事を待つ。
 // LINE の名前やプロフィールは受け取らない（openid だけ）。
 
-// LINE ログインのチャネル「問いサイト 問う応える」（2011959095・プロバイダー「記録形」= 公式LINE「にらレバ_西村」と同じ）の LIFF
+// LINE ログインのチャネルの LIFF。チャネルは公式LINE「問う応える」と同じプロバイダー「たいど」（1660696937）に置く
+// （LINE の ID はプロバイダーごとに違うので、別のプロバイダーだと知らせが届かない）
 export const LIFF_ID = "2011959095-ypYa664R";
 // 試しのあいだは、?linetest で開いた端末にだけボタンを出す（みんなに出すときに true にする）
 export const LINE_PUBLIC = false;
 const TEST_KEY = "toi.line_test";
-// 公式LINE「にらレバ_西村」を友だちに足すリンク（友だちでないと LINE は届かない）
-export const FRIEND_URL = "https://line.me/R/ti/p/@914vzoom";
+// 公式LINE「問う応える」を友だちに足すリンク（友だちでないと LINE は届かない）
+export const FRIEND_URL = "https://line.me/R/ti/p/@803ifgkb";
 const LIFF_SDK = "https://static.line-scdn.net/liff/edge/2/sdk.js";
 
 // ?linetest で開いたら、この端末を試しの端末にする（読み込んだときに1回）

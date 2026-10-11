@@ -1323,7 +1323,7 @@ async function boot() {
 
 /**
  * 「返事がきたら LINE で知らせてもらう」で開かれた（LIFF・?watch=<問いの id>）
- * LINE にログインして、この問いの返事を待つ。知らせは公式LINE「にらレバ_西村」から届く
+ * LINE にログインして、この問いの返事を待つ。知らせは公式LINE「問う応える」から届く
  * @param {string} questionId
  */
 async function renderWatch(questionId) {
@@ -1353,12 +1353,12 @@ async function renderWatch(questionId) {
       <div class="receipt-card paper-settle-animation">
         <h1 id="watch-heading" class="receipt-title" tabindex="-1">${ok ? "返事がきたら LINE で知らせます" : "うまくいきませんでした"}</h1>
         ${ok ? `
-          <p class="receipt-status-text">公式LINE「にらレバ」から届きます</p>
+          <p class="receipt-status-text">公式LINE「問う応える」から届きます</p>
           <p class="receipt-sub-notice">届くのは「返事が届いた」とリンクだけ。問いの中身は LINE に出しません。<br>
-            にらレバを友だちにしていないと届きません。</p>
+            「問う応える」を友だちにしていないと届きません。</p>
         ` : `<p class="receipt-status-text">${escapeHtml(message)}</p>`}
         <div class="receipt-actions">
-          ${ok ? `<a href="${FRIEND_URL}" class="btn btn-line btn-block">にらレバを友だちに追加</a>` : ""}
+          ${ok ? `<a href="${FRIEND_URL}" class="btn btn-line btn-block">「問う応える」を友だちに追加</a>` : ""}
           <a href="#inbox" class="btn btn-primary btn-block">自分への返事を見る</a>
           <a href="#home" class="btn btn-secondary btn-block">みんなの問いへ</a>
         </div>

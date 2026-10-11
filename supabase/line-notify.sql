@@ -1,6 +1,6 @@
 -- 問いに返事がきたら LINE で知らせる（2026-10-10 本人「問いコーナーで自分が出したものへの回答がきたら『回答きたよ！』って LINE が自動で飛ぶとかできない？」
 --   「まずは個人のにらレバの方の公式LINEを整えたいね。問いサイトのシステムを作ってみて」）
--- 送るのは公式LINE「にらレバ_西村」（@914vzoom・Messaging API のチャネル 1660752657・プロバイダー 1660752656）。
+-- 送るのは中高生向けの公式LINE「問う応える」（@803ifgkb・Messaging API のチャネル 1660696949・プロバイダー「たいど」1660696937。2026-10-11 に「にらレバ_西村」から替えた）。
 -- LINE で送れる相手の ID はプロバイダーごとに違うので、知らせを受けるためのログイン（LINE ログインのチャネルと LIFF）も同じプロバイダーに作る。
 --
 -- 流れ:
@@ -25,7 +25,7 @@ create table if not exists line_settings (
 alter table line_settings enable row level security;
 revoke all on line_settings from anon, authenticated;
 insert into line_settings (key, value) values
-  ('login_channel_id', ''),                                   -- にらレバのプロバイダーの LINE ログインのチャネル ID（作ったら入れる）
+  ('login_channel_id', ''),                                   -- 送り元と同じプロバイダーの LINE ログインのチャネル ID（作ったら入れる）
   ('site_url', 'https://nirareba0.github.io/toi-site/')
 on conflict (key) do nothing;
 
