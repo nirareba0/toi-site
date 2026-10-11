@@ -6,7 +6,7 @@
 
 // LINE ログインのチャネルの LIFF。チャネルは公式LINE「問う応える」と同じプロバイダー「たいど」（1660696937）に置く
 // （LINE の ID はプロバイダーごとに違うので、別のプロバイダーだと知らせが届かない）
-export const LIFF_ID = "2011959095-ypYa664R";
+export const LIFF_ID = "2011967281-zFeBIrmq";
 // 試しのあいだは、?linetest で開いた端末にだけボタンを出す（みんなに出すときに true にする）
 export const LINE_PUBLIC = false;
 const TEST_KEY = "toi.line_test";
