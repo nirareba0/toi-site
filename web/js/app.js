@@ -1,5 +1,5 @@
 /**
- * app.js - 問いポスト 本番フロントエンド制御 & ルーティング
+ * app.js - なんでポスト 本番フロントエンド制御 & ルーティング
  * ES Module (ビルド不要・素の ES Modules)
  */
 
@@ -723,7 +723,7 @@ function renderReceipt(questionId) {
 
         <div class="receipt-actions">
           ${lineLinkedIds.has(questionId) ? `
-          <p class="receipt-sub-notice">LINE とつながっているので、返事がきたら「問いポスト」から知らせます。</p>`
+          <p class="receipt-sub-notice">LINE とつながっているので、返事がきたら「なんでポスト」から知らせます。</p>`
           : lineReady() ? `
           <a href="${watchUrl(questionId)}" class="btn btn-line btn-block">
             返事がきたら LINE で知らせてもらう
@@ -770,7 +770,7 @@ async function renderInbox() {
         <h1 id="inbox-heading" class="inbox-h1" tabindex="-1">自分への返事</h1>
         <p class="inbox-desc">あなたが送った問いの確認状況や、届いた大人からの返事を読めます。</p>
         ${lineReady() ? (lineLinked ? `
-          <p class="inbox-desc">LINE とつながっています。ほかの端末や LINE の中で出した問いも、ここに出ます。返事がきたら「問いポスト」から知らせます。
+          <p class="inbox-desc">LINE とつながっています。ほかの端末や LINE の中で出した問いも、ここに出ます。返事がきたら「なんでポスト」から知らせます。
             <a href="#notes">LINE で答えたノート →</a></p>
         ` : `
           <button type="button" class="btn btn-line btn-sm" id="btn-line-connect" style="margin-top: 12px;">LINE とつなぐ（ほかの端末と同じ一覧にする）</button>
@@ -903,14 +903,14 @@ async function syncLineQuestions() {
 
 /**
  * 5-2. LINE で答えたノート (#notes)
- * 公式LINE「問いポスト」に届いた問いへ、トークで答えたもの。LINE でログインした本人だけが読める
+ * 公式LINE「なんでポスト」に届いた問いへ、トークで答えたもの。LINE でログインした本人だけが読める
  */
 async function renderNotes() {
   if (!lineReady() || !isConfigured()) {
     mainContainer.innerHTML = `
       <div class="card p-lg text-center" style="max-width: 500px; margin: 2rem auto;">
         <h1 id="notes-heading" tabindex="-1" class="inbox-h1">ノート</h1>
-        <p>LINE の「問いポスト」で答えたことが、ここに残ります。いまは準備中です。</p>
+        <p>LINE の「なんでポスト」で答えたことが、ここに残ります。いまは準備中です。</p>
         <div style="margin-top: 1rem;"><a href="#home" class="btn btn-primary">みんなの問いへ</a></div>
       </div>
     `;
@@ -943,7 +943,7 @@ async function renderNotes() {
     <div class="inbox-container">
       <div class="inbox-header">
         <h1 id="notes-heading" class="inbox-h1" tabindex="-1">自分のノート</h1>
-        <p class="inbox-desc">LINE の「問いポスト」に届いた問いへ、トークで答えたことが残ります。読めるのはあなただけです。</p>
+        <p class="inbox-desc">LINE の「なんでポスト」に届いた問いへ、トークで答えたことが残ります。読めるのはあなただけです。</p>
       </div>
       <div class="inbox-list">
         ${notes === null ? `
@@ -954,8 +954,8 @@ async function renderNotes() {
         ` : notes.length === 0 ? `
           <div class="card" style="text-align: center; padding: 36px 20px;">
             <p style="font-weight: 600; margin-bottom: 8px;">まだノートがありません</p>
-            <p style="font-size: 0.875rem; color: var(--color-body-muted); margin-bottom: 20px;">LINE の「問いポスト」で「問い」と打つと、問いが1つ届きます。思ったことをそのまま打つと、ここに残ります。</p>
-            <a href="${FRIEND_URL}" class="btn btn-line">「問いポスト」を開く</a>
+            <p style="font-size: 0.875rem; color: var(--color-body-muted); margin-bottom: 20px;">LINE の「なんでポスト」で「問い」と打つと、問いが1つ届きます。思ったことをそのまま打つと、ここに残ります。</p>
+            <a href="${FRIEND_URL}" class="btn btn-line">「なんでポスト」を開く</a>
           </div>
         ` : notes.map(n => `
           <article class="inbox-card">
@@ -1546,7 +1546,7 @@ async function boot() {
 
 /**
  * 「返事がきたら LINE で知らせてもらう」で開かれた（LIFF・?watch=<問いの id>）
- * LINE にログインして、この問いの返事を待つ。知らせは公式LINE「問いポスト」から届く
+ * LINE にログインして、この問いの返事を待つ。知らせは公式LINE「なんでポスト」から届く
  * @param {string} questionId
  */
 async function renderWatch(questionId) {
@@ -1576,12 +1576,12 @@ async function renderWatch(questionId) {
       <div class="receipt-card paper-settle-animation">
         <h1 id="watch-heading" class="receipt-title" tabindex="-1">${ok ? "返事がきたら LINE で知らせます" : "うまくいきませんでした"}</h1>
         ${ok ? `
-          <p class="receipt-status-text">公式LINE「問いポスト」から届きます</p>
+          <p class="receipt-status-text">公式LINE「なんでポスト」から届きます</p>
           <p class="receipt-sub-notice">届くのは「返事が届いた」とリンクだけ。問いの中身は LINE に出しません。<br>
-            「問いポスト」を友だちにしていないと届きません。</p>
+            「なんでポスト」を友だちにしていないと届きません。</p>
         ` : `<p class="receipt-status-text">${escapeHtml(message)}</p>`}
         <div class="receipt-actions">
-          ${ok ? `<a href="${FRIEND_URL}" class="btn btn-line btn-block">「問いポスト」を友だちに追加</a>` : ""}
+          ${ok ? `<a href="${FRIEND_URL}" class="btn btn-line btn-block">「なんでポスト」を友だちに追加</a>` : ""}
           <a href="#inbox" class="btn btn-primary btn-block">自分への返事を見る</a>
           <a href="#home" class="btn btn-secondary btn-block">みんなの問いへ</a>
         </div>
