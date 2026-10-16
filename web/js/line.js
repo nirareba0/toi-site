@@ -1,16 +1,16 @@
 // web/js/line.js
-// 公式LINE「問う応える」（@803ifgkb・運営 たいど）とつなぐ。
+// 公式LINE「問いポスト」（@803ifgkb・運営 たいど）とつなぐ。
 // - 問いに返事がきたら LINE で知らせる（supabase/line-notify.sql）: 「LINE で知らせてもらう」→ LIFF（LINE の中のブラウザ）で ?watch=<問いの id> → watch_question
 // - LINE と同期する（supabase/line-sync.sql）: LINE でログインした人の「自分の問い」と「ノート」（LINE で答えたもの）を、端末をまたいで同じにする
 // LINE の名前やプロフィールは受け取らない（openid だけ）。
 
-// LINE ログインのチャネルの LIFF。チャネルは公式LINE「問う応える」と同じプロバイダー「たいど」（1660696937）に置く
+// LINE ログインのチャネルの LIFF。チャネルは公式LINE「問いポスト」と同じプロバイダー「たいど」（1660696937）に置く
 // （LINE の ID はプロバイダーごとに違うので、別のプロバイダーだと知らせが届かない）
 export const LIFF_ID = "2011967281-zFeBIrmq";
 // 試しのあいだは、?linetest で開いた端末にだけボタンを出す（みんなに出すときに true にする）
 export const LINE_PUBLIC = false;
 const TEST_KEY = "toi.line_test";
-// 公式LINE「問う応える」を友だちに足すリンク（友だちでないと LINE は届かない）
+// 公式LINE「問いポスト」を友だちに足すリンク（友だちでないと LINE は届かない）
 export const FRIEND_URL = "https://line.me/R/ti/p/@803ifgkb";
 const LIFF_SDK = "https://static.line-scdn.net/liff/edge/2/sdk.js";
 // LINE の中から開ける画面（?view=）。LINE のトークやリッチメニューから https://liff.line.me/<LIFF_ID>?view=notes で来る

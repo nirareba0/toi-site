@@ -122,7 +122,7 @@ begin
     group by lw.line_user_id
   loop
     v_res := toi_line_send(w.line_user_id,
-      '📮 あなたの問いに返事が届いたよ！' || chr(10) || '「問う応える」で読めます' || chr(10) || v_url);
+      '📮 あなたの問いに返事が届いたよ！' || chr(10) || '「問いポスト」で読めます' || chr(10) || v_url);
     insert into line_notices (answer_id, line_user_id, status, request_id)
     select x, w.line_user_id, v_res->>'status', (v_res->>'request_id')::bigint from unnest(w.answer_ids) as x
     on conflict (answer_id, line_user_id) do nothing;

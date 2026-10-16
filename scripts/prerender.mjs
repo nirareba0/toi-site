@@ -13,7 +13,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../web/js/config.js'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const WEB = join(ROOT, 'web')
 const SITE = 'https://nirareba0.github.io/toi-site/'
-const SITE_NAME = 'Miacis（ミアキス）問いコーナー'
+const SITE_NAME = '問いポスト'
 const OG_IMAGE = SITE + 'assets/toi-corner-miacis.jpg'
 
 // 問いを扱ったラジオの回（YouTube）。問いの id → 回
@@ -71,7 +71,7 @@ ${jsonld ? `  <script type="application/ld+json">${ld(jsonld)}</script>\n` : ''}
 <body>
   <header class="app-header">
     <div class="header-container">
-      <a href="${SITE}" class="brand-link"><img class="brand-motif-icon" src="${SITE}assets/mark.svg" alt="" width="26" height="22"><span class="brand-title">Miacis 問いコーナー</span></a>
+      <a href="${SITE}" class="brand-link"><img class="brand-motif-icon" src="${SITE}assets/mark-cloud.png" alt="" width="36" height="22"><span class="brand-title">問いポスト</span></a>
     </div>
   </header>
   <main class="static-wrap">
@@ -80,7 +80,7 @@ ${body}
   <footer class="app-footer">
     <div class="footer-container">
       <div class="footer-meta">
-        <p class="footer-facility">山梨県韮崎市 青少年育成プラザ Miacis（ミアキス）問いコーナー</p>
+        <p class="footer-facility">問いポスト（運営 たいど・山梨県韮崎市）。Miacis（ミアキス）の問いコーナーとつながっています</p>
         <p class="footer-sub">中高生が問いを書き、スタッフや地域の大人が返事を書く。館内の紙の問いコーナーと、このサイトは同じ問いコーナーです。</p>
       </div>
       <div class="footer-links">

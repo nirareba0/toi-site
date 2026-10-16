@@ -1,7 +1,7 @@
 {
-  "name": "Miacis 問いコーナー",
-  "short_name": "問いコーナー",
-  "description": "韮崎市の中高生の居場所 Miacis の問いコーナー。問いを書くと、大人から返事が届く。",
+  "name": "問いポスト",
+  "short_name": "問いポスト",
+  "description": "韮崎市の中高生の問いと、大人の返事。問いを入れると、大人から返事が届く。",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
