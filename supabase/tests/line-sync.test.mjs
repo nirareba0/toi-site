@@ -61,6 +61,7 @@ before(async () => {
   await db.exec(read('schema.sql'));
   await db.exec(read('line-notify.sql'));
   await db.exec(read('line-sync.sql'));
+  await db.exec(read('line-reactions.sql'));
   // LINE との通信・署名・ログインを差し替える
   await db.exec(`
     create table sent (id serial, path text, body jsonb);
@@ -276,4 +277,48 @@ test('サイト: ノートは本人だけが読めて消せる。ブラウザか
   await rejects(anon('select line_webhook($1, $2)', ['{"events":[]}', 'ok']), 'permission denied');
   await rejects(anon('select toi_line_daily()'), 'permission denied');
   await rejects(anon('select toi_line_push($1, $2, $3)', ['U1', '[]', 'x']), 'permission denied');
+});
+
+test('載った答えに反応が押されたら、書いた人に知らせる。1つの答えにつき1日1通。だれが押したかは載せない', async () => {
+  await hook([follow('R1')]);
+  await hook([press('R1', 'a=next')]);
+  await hook([say('R1', '反応のテスト')]);
+  const [n] = await notes('R1');
+  await hook([press('R1', `a=share&n=${n.id}`)]);
+  const { answer_id: a } = (await notes('R1'))[0];
+  await admin('update answers set approved = true where id = $1', [a]);
+  await clearSent();
+
+  await anon(`insert into reactions (target_type, target_id, kind, client_hash) values ('answer', $1, 'kyokan', 'h1')`, [a]);
+  const p = (await sent()).filter(([path]) => path === 'push');
+  assert.deepEqual(p.map(([, to]) => to), ['R1']);
+  assert.match(p[0][2][0].text, /反応が届いたよ/);
+  assert.ok(p[0][2][0].text.includes(`#question/${n.question_id}`));
+  assert.ok(!p[0][2][0].text.includes('反応のテスト'));
+  // 同じ日の2つ目の反応では送らない
+  await anon(`insert into reactions (target_type, target_id, kind, client_hash) values ('answer', $1, 'kangaeta', 'h2')`, [a]);
+  assert.equal((await sent()).length, 1);
+  // 大人の返事・問いへの反応では送らない
+  await clearSent();
+  const q = (await admin('select question_id from answers where id = $1', [a]))[0].question_id;
+  const adult = (await admin(`insert into answers (question_id, body, approved, created_at) values ($1, '昔の返事', true, now() - interval '1 day') returning id`, [q]))[0].id;
+  await anon(`insert into reactions (target_type, target_id, kind, client_hash) values ('answer', $1, 'kyokan', 'h3'), ('question', $2, 'kyokan', 'h3')`, [adult, q]);
+  assert.deepEqual((await sent()).filter(([, to]) => to === 'R1'), []);   // 問いを待っている人への「返事が届いた」は別
+});
+
+test('自分が答えた問いに、ほかの返事が載ったら知らせる。前からある返事・自分の返事では送らない', async () => {
+  const [n] = await notes('R1');
+  await clearSent();
+  const b = (await admin(`insert into answers (question_id, body, approved) values ($1, '大人の新しい返事', false) returning id`, [n.question_id]))[0].id;
+  assert.deepEqual(await sent(), []);                       // 未承認のうちは送らない
+  await admin('update answers set approved = true where id = $1', [b]);
+  const p = (await sent()).filter(([path, to]) => path === 'push' && to === 'R1');
+  assert.equal(p.length, 1);
+  assert.match(p[0][2][0].text, /ほかの人の返事が載ったよ/);
+  await admin('update answers set body = body where id = $1', [b]);   // 二重に送らない
+  assert.equal((await sent()).filter(([path, to]) => path === 'push' && to === 'R1').length, 1);
+  // 前からある返事（昔の返事）を直しても送らない
+  await clearSent();
+  await admin(`update answers set body = body where body = '昔の返事'`);
+  assert.deepEqual((await sent()).filter(([, to]) => to === 'R1'), []);
 });

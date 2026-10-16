@@ -1380,6 +1380,18 @@ body {
   border-radius: var(--radius-full);
 }
 
+.reply-reactions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.btn-react[aria-pressed="true"] {
+  background-color: var(--color-vivid-blue);
+  border-color: var(--color-vivid-blue);
+  color: #fff;
+}
+
 .reply-body {
   font-size: 0.9375rem;
   line-height: 1.65;

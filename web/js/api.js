@@ -208,6 +208,26 @@ export async function myLineNotes(idToken) {
   return (await lineRpc("line_my_notes", { p_id_token: idToken })) || [];
 }
 
+/**
+ * 返事に反応する（共感した / 考えさせられた）。匿名・件数はどこにも出さない。
+ * LINE から載った答えなら、書いた人に LINE で「反応が届いた」と知らせる（supabase/line-reactions.sql）。
+ * 同じ端末で同じ反応を2回押しても1回（一意の索引）
+ * @param {string} answerId
+ * @param {'kyokan'|'kangaeta'} kind
+ */
+export async function reactToAnswer(answerId, kind) {
+  if (!sb) {
+    throw new Error("Supabase の接続設定が未完了です。config.js を設定してください。");
+  }
+  const { error } = await sb.from("reactions").insert({
+    target_type: "answer",
+    target_id: answerId,
+    kind,
+    client_hash: await clientHash()
+  });
+  if (error && error.code !== "23505") throw error;   // 23505: もう押してある
+}
+
 /** ノートを1つ消す */
 export async function deleteLineNote(idToken, noteId) {
   return lineRpc("line_delete_note", { p_id_token: idToken, p_note_id: noteId });

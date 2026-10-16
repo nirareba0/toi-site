@@ -36,7 +36,8 @@ import {
   linkLineQuestions,
   myLineQuestions,
   myLineNotes,
-  deleteLineNote
+  deleteLineNote,
+  reactToAnswer
 } from "./api.js";
 import { lineReady, watchUrl, watchRequest, viewRequest, lineIdToken, lineIdTokenIfLoggedIn, FRIEND_URL } from "./line.js";
 
@@ -1079,7 +1080,7 @@ async function renderDetail(questionId) {
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
           </svg>
-          届いている大人の返事
+          届いている返事
         </h2>
 
         ${answerCount === 0 ? `
@@ -1099,6 +1100,10 @@ async function renderDetail(questionId) {
                   </div>
                 </div>
                 <div class="reply-body">${escapeHtml(reply.body)}</div>
+                ${lineReady() ? `
+                <div class="reply-reactions" role="group" aria-label="この返事への反応">
+                  ${REACTIONS.map(r => `<button type="button" class="btn btn-outline btn-sm btn-react" data-answer="${escapeHtml(reply.id)}" data-kind="${r.kind}" aria-pressed="${reacted(reply.id, r.kind)}">${r.label}</button>`).join("")}
+                </div>` : ""}
               </div>
             `).join('')}
           </div>
@@ -1109,6 +1114,50 @@ async function renderDetail(questionId) {
 
   const h1 = document.getElementById("question-detail-title");
   if (h1) h1.focus();
+
+  document.querySelectorAll(".btn-react").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (btn.getAttribute("aria-pressed") === "true") return;
+      btn.disabled = true;
+      try {
+        await reactToAnswer(btn.dataset.answer, btn.dataset.kind);
+        markReacted(btn.dataset.answer, btn.dataset.kind);
+        btn.setAttribute("aria-pressed", "true");
+        announce("反応を送りました。だれが押したかは相手にわかりません。");
+      } catch (e) {
+        console.error(e);
+        announce("反応を送れませんでした。");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+// 返事への反応（件数は出さない。押したかどうかだけ、この端末に覚える）
+const REACTIONS = [
+  { kind: "kyokan", label: "共感した" },
+  { kind: "kangaeta", label: "考えさせられた" }
+];
+const REACTED_KEY = "toi.reacted";
+function reactedSet() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(REACTED_KEY) || "[]"));
+  } catch {
+    return new Set();
+  }
+}
+function reacted(answerId, kind) {
+  return reactedSet().has(`${answerId}:${kind}`);
+}
+function markReacted(answerId, kind) {
+  try {
+    const s = reactedSet();
+    s.add(`${answerId}:${kind}`);
+    localStorage.setItem(REACTED_KEY, JSON.stringify([...s].slice(-500)));
+  } catch {
+    // localStorage が使えない
+  }
 }
 
 /**
