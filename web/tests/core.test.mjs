@@ -352,6 +352,11 @@ test("8. 運営リンク (activeSiteLinks)", async (t) => {
     const out = activeSiteLinks({ instagram: "https://www.instagram.com/example/", operator: "example.com" });
     assert.equal(out.length, 1);
     assert.equal(out[0].key, "instagram");
-    assert.equal(out[0].label, "Miacis の Instagram");
+    assert.equal(out[0].label, "Instagram");
+  });
+
+  await t.test("運営のリンクは「運営 たいど のサイト」。大人の方へ（#adults）のルートがある", () => {
+    assert.equal(activeSiteLinks({ operator: "https://nirareba0.github.io/" })[0].label, "運営 たいど のサイト");
+    assert.deepEqual(resolveRoute("#adults"), { type: "route", path: "adults", paramId: undefined });
   });
 });

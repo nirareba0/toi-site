@@ -9,7 +9,7 @@ export const DEFAULT_THEMES = [
   { id: 'gakko', label: '学校・勉強' },
   { id: 'koi', label: '恋・好き' },
   { id: 'nichijo', label: '日常のモヤモヤ' },
-  { id: 'miacis', label: 'Miacis のこと' },
+  { id: 'miacis', label: '居場所のこと' },
 ];
 
 export const DEFAULT_NICKNAME = 'だれか';
@@ -142,10 +142,10 @@ export function resolveRoute(hash) {
   }
   const segments = clean.split('/');
   const [routePath, paramId] = segments;
-  const validRoutes = ['ask', 'receipt', 'inbox', 'notes', 'question', 'about', 'why'];
+  const validRoutes = ['ask', 'receipt', 'inbox', 'notes', 'question', 'about', 'adults', 'why'];
   const validSegmentCount = (
     (routePath === 'ask' && (segments.length === 1 || (segments.length === 2 && paramId === 'confirm')))
-    || (['inbox', 'notes', 'about', 'why'].includes(routePath) && segments.length === 1)
+    || (['inbox', 'notes', 'about', 'adults', 'why'].includes(routePath) && segments.length === 1)
     || (['receipt', 'question'].includes(routePath) && segments.length === 2 && Boolean(paramId))
   );
   if (validRoutes.includes(routePath) && validSegmentCount) {
@@ -342,8 +342,7 @@ export function createInitialState() {
  * 中高生が見るサイトなので、確認できていない URL を推測で入れないこと。
  */
 export const SITE_LINKS = {
-  instagram: "https://www.instagram.com/miacis_1009/",   // Miacis の公式アカウント
-  operator: "https://nirareba0.github.io/",             // にしむ（運営者）のサイト
+  operator: "https://nirareba0.github.io/",             // 運営 たいど のサイト（Miacis の名前は出さない。本人の決定 2026-10-16）
   podcast: "https://podcasts.apple.com/jp/podcast/id1805591539"  // 問いをお借りしたポッドキャスト
 };
 
@@ -366,7 +365,7 @@ export function creditLink(credit) {
  * @returns {Array<{key: string, url: string, label: string}>}
  */
 export function activeSiteLinks(links = SITE_LINKS) {
-  const label = { instagram: "Miacis の Instagram", operator: "にしむ（運営者）のサイト",
+  const label = { instagram: "Instagram", operator: "運営 たいど のサイト",
                   podcast: "『Wナガイと哲学対話』（問いをお借りした番組）" };
   return Object.entries(links)
     .filter(([, url]) => typeof url === "string" && /^https:\/\//.test(url.trim()))

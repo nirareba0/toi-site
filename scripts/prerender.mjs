@@ -14,7 +14,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const WEB = join(ROOT, 'web')
 const SITE = 'https://nirareba0.github.io/toi-site/'
 const SITE_NAME = 'なんでポスト'
-const OG_IMAGE = SITE + 'assets/toi-corner-miacis.jpg'
+const OG_IMAGE = SITE + 'assets/og-nandepost.png'
 
 // 問いを扱ったラジオの回（YouTube）。問いの id → 回
 const radioFile = join(ROOT, 'scripts', 'radio-episodes.json')
@@ -80,7 +80,7 @@ ${body}
   <footer class="app-footer">
     <div class="footer-container">
       <div class="footer-meta">
-        <p class="footer-facility">なんでポスト（運営 たいど・山梨県韮崎市）。Miacis（ミアキス）の問いコーナーとつながっています</p>
+        <p class="footer-facility">なんでポスト｜運営 たいど（山梨県韮崎市）</p>
         <p class="footer-sub">中高生が問いを書き、スタッフや地域の大人が返事を書く。館内の紙の問いコーナーと、このサイトは同じ問いコーナーです。</p>
       </div>
       <div class="footer-links">
@@ -106,8 +106,8 @@ for (const q of questions) {
   const as = byQ.get(q.id) ?? []
   const title = `${clip(q.body, 40)}｜${SITE_NAME}`
   const description = as.length
-    ? `韮崎市の中高生の居場所 Miacis（ミアキス）の問いコーナーに届いた問い「${clip(q.body, 40)}」と、大人からの返事${as.length}件。`
-    : `韮崎市の中高生の居場所 Miacis（ミアキス）の問いコーナーに届いた問い「${clip(q.body, 60)}」。返事を書いてくれる大人を募集しています。`
+    ? `韮崎市の中高生が「なんでポスト」に入れた問い「${clip(q.body, 40)}」と、大人からの返事${as.length}件。`
+    : `韮崎市の中高生が「なんでポスト」に入れた問い「${clip(q.body, 60)}」。返事を書いてくれる大人を募集しています。`
   const ep = radio[q.id]
   const body = `    <p class="static-meta">${esc(q.theme_label || '問い')}・${esc(ymd(q.created_at))}${q.credit ? '・ポッドキャストからお借りした問い' : ''}</p>
     <h1>${esc(oneLine(q.body))}</h1>
@@ -115,7 +115,7 @@ ${as.length ? as.map(a => `    <section class="static-answer">
       <h2>${esc(a.responder_role)}からの返事${a.ai_assisted ? '（AI と一緒に考えた返事）' : ''}</h2>
       ${paras(a.body)}
     </section>`).join('\n') : '    <p>まだ返事はありません。</p>'}
-${ep ? `    <p>この問いは、ラジオ「ミアキスの問いコーナー」でも取り上げました：<a href="${esc(ep.url)}">${esc(ep.title)}</a></p>\n` : ''}    <div class="static-actions">
+${ep ? `    <p>この問いは、ラジオの問いコーナーでも取り上げました：<a href="${esc(ep.url)}">${esc(ep.title)}</a></p>\n` : ''}    <div class="static-actions">
       <a class="btn btn-primary" href="${SITE}#question/${esc(q.id)}">問いコーナーでこの問いを見る</a>
       <a class="btn btn-secondary" href="${SITE}#ask">自分も問いを書く</a>
       <a class="btn btn-secondary" href="${SITE}q/">ほかの問いを見る</a>
@@ -147,7 +147,7 @@ ${ep ? `    <p>この問いは、ラジオ「ミアキスの問いコーナー�
 const themes = new Map()
 for (const q of questions) (themes.get(q.theme_label || 'そのほか') ?? themes.set(q.theme_label || 'そのほか', []).get(q.theme_label || 'そのほか')).push(q)
 const listBody = `    <h1>問いの一覧</h1>
-    <p>山梨県韮崎市の中高生の居場所 Miacis（ミアキス）の問いコーナーに届いた問いです。中高生が紙やこのサイトに問いを書き、スタッフや大学生、地域の大人が返事を書いています。いまは${questions.length}件の問いが読めます。</p>
+    <p>山梨県韮崎市の中高生が「なんでポスト」に入れた問いです。中高生が紙やこのサイトに問いを書き、スタッフや大学生、地域の大人が返事を書いています。いまは${questions.length}件の問いが読めます。</p>
     <p><a class="btn btn-primary" href="${SITE}#ask">問いを書く</a></p>
 ${[...themes].map(([t, qs]) => `    <h2>${esc(t)}（${qs.length}）</h2>
     <ul class="static-list">
@@ -156,7 +156,7 @@ ${qs.map(q => `      <li><a href="${SITE}q/${esc(q.id)}/">${esc(clip(q.body, 80)
 writeFileSync(join(WEB, 'q', 'index.html'), page({
   path: 'q/',
   title: `問いの一覧｜${SITE_NAME}`,
-  description: `韮崎市の中高生の居場所 Miacis（ミアキス）の問いコーナーに届いた問い${questions.length}件と、大人からの返事。`,
+  description: `韮崎市の中高生が「なんでポスト」に入れた問い${questions.length}件と、大人からの返事。`,
   body: listBody,
   jsonld: { '@context': 'https://schema.org', '@type': 'CollectionPage', name: `問いの一覧｜${SITE_NAME}`, url: `${SITE}q/` },
 }))

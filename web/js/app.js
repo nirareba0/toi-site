@@ -1167,49 +1167,26 @@ function renderAbout() {
   mainContainer.innerHTML = `
     <div class="about-container">
       <article class="about-article">
-        <h1 id="about-heading" class="about-h1" tabindex="-1">この場所について</h1>
+        <h1 id="about-heading" class="about-h1" tabindex="-1">なんでポストについて</h1>
+        <img src="assets/lockup-h.png" alt="なんでポスト" width="1200" height="400" style="width:min(100%,420px);height:auto;margin:4px 0 20px" loading="lazy" decoding="async">
 
-        <h2 class="about-subtitle">Miacis（ミアキス）のこと</h2>
+        <h2 class="about-subtitle">「なんで？」を入れると、大人から返事が届く</h2>
         <p class="about-p">
-          山梨県韮崎市にある、中高生のための居場所です。学校でも家でもない「第3の居場所」として、
-          放課後に立ち寄って勉強したり、話したり、なにもしないで過ごしたりできます。
-          常駐するスタッフが、日々そこにいます。
+          山梨県韮崎市とその周りの中高生のための「問いのポスト」です。
+          気になったこと、モヤモヤしていることを、名前を出さずに入れると、
+          親でも先生でもない地域の大人が、それぞれの考えを書いて返します。
         </p>
-        <div class="about-brand">
-          <img src="assets/miacis-logo.png" width="1200" height="1012" loading="lazy" decoding="async"
-               alt="らしさ、無制限。青少年育成プラザ Miacis">
-          <p>青少年育成プラザ Miacis（ミアキス）<br>山梨県韮崎市</p>
-        </div>
+        <p class="about-p">
+          公式LINE「なんでポスト」を友だちにすると、問いがときどき届きます。答えをトークに打つと、あなただけのノートに残ります。
+          紙のポストが置いてある場所でも書けます。
+        </p>
 
-        <h2 class="about-subtitle">館内に、紙の問いコーナーがあります</h2>
-        <p class="about-p">
-          このサイトは、思いつきで始まったものではありません。
-          Miacis の館内には、ホワイトボードにカードを貼っていく「問いコーナー」が実際にあります。
-          中高生が気になっていることを書いて貼ると、スタッフや大学生、地域の大人が
-          それぞれの考えを書いて返す。その往復が、年間100件ほど続いてきました。
-        </p>
-        <figure class="about-figure">
-          <img src="assets/toi-corner-miacis.jpg" width="1200" height="900" loading="lazy" decoding="async"
-               alt="Miacis 館内のホワイトボードに設置された問いコーナー。「にしむの問いコーナー モヤモヤや疑問、なんでも問いてね。」のポスターの下に、問いのカードと大人からの返事のカードが並んで貼られている">
-          <figcaption>館内の問いコーナー。返事は「大学生の回答」「ニシムーの回答」のように、書いた人ごとに並んでいます。</figcaption>
-        </figure>
-        <figure class="about-figure">
-          <img src="assets/toi-corner-notes.jpg" width="900" height="1273" loading="lazy" decoding="async"
-               alt="問いコーナーに寄せられた付箋。「幸せな家庭ってなに？」「人は1人では生きていけないの？」などの手書きの問いが並んでいる">
-          <figcaption>寄せられた問い。うまく言えていなくても、ひとことでも、そのまま貼られています。</figcaption>
-        </figure>
-
-        <h2 class="about-subtitle">紙から、このサイトへ</h2>
-        <p class="about-p">
-          紙のよさは、その場で書けて、誰かの字がそのまま残ることです。
-          でも館内に来ないと読めないし、返事が貼られたことにも気づきにくい。
-          だからこのサイトをつくりました。
-        </p>
-        <p class="about-p">
-          <strong>館内の紙に書いても、このサイトから書いても、どちらでも同じ問いコーナーです。</strong>
-          ここからなら、自分のスマホで、家からでも、名前を出さずに書けます。
-          返事が届いたかどうかも、あとから自分で確かめられます。
-        </p>
+        <h2 class="about-subtitle">安心して使えるように</h2>
+        <ul class="about-p" style="padding-left:1.2em">
+          <li>名前・学校名は出しません。問いも返事も、運営が読んでから載せます。</li>
+          <li>大人と中高生が、1対1で連絡を取り合うことはありません。</li>
+          <li>LINE のトークは、人が読んでいません。つらいときは、相談窓口につないでください（ページのいちばん下にあります）。</li>
+        </ul>
 
         <h2 class="about-subtitle">問いは、世界の見方をふやす。</h2>
         <p class="about-p">
@@ -1237,8 +1214,8 @@ function renderAbout() {
           return `
         <h2 class="about-subtitle">運営について</h2>
         <p class="about-p">
-          この問いコーナーは、Miacis のスタッフと地域の大人が続けています。
-          ふだんの Miacis の様子や、運営している人のことは、こちらから見られます。
+          なんでポストは「たいど」（山梨県韮崎市）が運営し、返事は地域の大人が書いています。
+          返事を書いてみたい大人の方、学校や会社の方は <a href="#adults" class="about-link">大人の方へ</a> をどうぞ。
         </p>
         <ul class="about-links">
           ${links.map(l => `
@@ -1263,6 +1240,60 @@ function renderAbout() {
 
   const h1 = document.getElementById("about-heading");
   if (h1) h1.focus();
+}
+
+/**
+ * 7-2. 大人の方へ (#adults)
+ * 運営 たいど への入口（2026-10-16 本人「運営会社への流入もできるようにしておいて」）。
+ * たいど の公式LINE は大人向けなので、このページにだけ置く（中高生の画面には出さない）
+ */
+const TAIDO_LINE = "https://line.me/R/ti/p/@914vzoom";
+const TAIDO_SITE = "https://nirareba0.github.io/";
+function renderAdults() {
+  const ext = (href, text, cls = "btn btn-secondary") => `<a href="${href}" target="_blank" rel="noopener noreferrer" class="${cls}">${text}</a>`;
+  mainContainer.innerHTML = `
+    <div class="about-container">
+      <article class="about-article">
+        <h1 id="adults-heading" class="about-h1" tabindex="-1">大人の方へ</h1>
+        <p class="about-p">
+          なんでポストは、中高生の「なんで？」に、親でも先生でもない地域の大人が返事を書く場所です。
+          運営は「たいど」（山梨県韮崎市）。いっしょに続けてくれる方を探しています。
+        </p>
+
+        <h2 class="about-subtitle">返事を書く大人になる</h2>
+        <p class="about-p">
+          届いた問いを1つずつお送りします。答えを押しつけず「わたしはこう思う」で書いてもらえれば十分です。
+          返事は運営が読んでから載せます。名前や連絡先は出しません。中高生と個別に連絡を取ることはありません。
+        </p>
+
+        <h2 class="about-subtitle">学校・地域の場で「問いの時間」</h2>
+        <p class="about-p">
+          授業や集まりで、中高生が問いを立て、地域の大人の返事を読む時間をつくれます。出張の問いコーナーもご相談ください。
+        </p>
+
+        <h2 class="about-subtitle">応援する会社として</h2>
+        <p class="about-p">
+          社員の方が返事を書く大人になる、活動を支える、といった関わり方があります。
+          中高生に届く LINE で宣伝をすることはありません。
+        </p>
+
+        <h2 class="about-subtitle">運営 たいど について</h2>
+        <p class="about-p">
+          たいどは、組織づくり・広告企画の事業です。お店や会社の「たいど」を、聞く・考える・学ぶ・出すの4つの技術で整えます。
+          なんでポストは、その地域での取り組みのひとつです。
+        </p>
+
+        <div class="receipt-actions" style="max-width:420px;margin-top:20px">
+          ${ext(TAIDO_LINE, "たいど の公式LINE で相談する", "btn btn-line btn-block")}
+          ${ext(TAIDO_SITE, "たいど のサイトを見る", "btn btn-secondary btn-block")}
+        </div>
+        <p class="about-p" style="font-size:0.8125rem;color:var(--color-body-muted);margin-top:12px">
+          ※ 大人の方の窓口です。中高生の方は、問いは <a href="#ask">問いを書く</a> から、LINE は「なんでポスト」の公式LINE をどうぞ。
+        </p>
+      </article>
+    </div>
+  `;
+  document.getElementById("adults-heading")?.focus();
 }
 
 /**
@@ -1479,6 +1510,8 @@ async function handleRouting() {
       await renderDetail(resolution.paramId);
     } else if (resolution.path === "about") {
       renderAbout();
+    } else if (resolution.path === "adults") {
+      renderAdults();
     } else if (resolution.path === "why") {
       renderWhy();
     }
