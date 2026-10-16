@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test web/tests/",
-    "test:db": "node --test supabase/tests/"
+    "test:db": "node --test supabase/tests/*.test.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.2.14"

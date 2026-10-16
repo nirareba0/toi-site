@@ -176,6 +176,43 @@ export async function watchQuestion(questionId, idToken) {
   if (error) throw error;
 }
 
+// ---- LINE と同期する（supabase/line-sync.sql）。どれも DB が LINE のサーバーで ID トークンを確かめる ----
+
+async function lineRpc(name, args) {
+  if (!sb) {
+    throw new Error("Supabase の接続設定が未完了です。config.js を設定してください。");
+  }
+  const { data, error } = await sb.rpc(name, args);
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * この端末で出した問いを LINE の人に結ぶ（返事がきたら LINE で知らせる対象にもなる）。
+ * 端末の印（client_hash）が投函時と同じ問いだけが結ばれる。結んだ数を返す
+ * @param {string} idToken
+ * @param {Array<string>} ids
+ */
+export async function linkLineQuestions(idToken, ids) {
+  if (!ids || ids.length === 0) return 0;
+  return lineRpc("line_link_questions", { p_id_token: idToken, p_ids: ids.slice(0, 200), p_client_hash: await clientHash() });
+}
+
+/** LINE の人が出した問い（確認中のものも）。{ id, body, nickname, theme_id, theme_label, approved, answer_count, created_at }[] */
+export async function myLineQuestions(idToken) {
+  return (await lineRpc("line_my_questions", { p_id_token: idToken })) || [];
+}
+
+/** LINE で答えたノート。{ id, body, created_at, question_id, question_body, shared, published }[] */
+export async function myLineNotes(idToken) {
+  return (await lineRpc("line_my_notes", { p_id_token: idToken })) || [];
+}
+
+/** ノートを1つ消す */
+export async function deleteLineNote(idToken, noteId) {
+  return lineRpc("line_delete_note", { p_id_token: idToken, p_note_id: noteId });
+}
+
 export async function postQuestion({ id, body, nickname = "", theme_id = null }) {
   if (!sb) {
     throw new Error("Supabase の接続設定が未完了です。config.js を設定してください。");

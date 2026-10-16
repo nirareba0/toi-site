@@ -3,7 +3,7 @@
 山梨県韮崎市の中高生の居場所 **Miacis（ミアキス）** の館内にある、紙の「問いコーナー」を Web に広げるサイト。
 中高生が問いを書き、スタッフや地域の大人が返事を書く。館内の紙とこのサイトは同じ問いコーナー。
 
-**文書・要件・決定の正本は `~/AIOS/core/projects/miacis/`。ここはコードだけ。**
+**文書・要件・決定の正本は `~/AIOS/core/projects/toi-corner/`（2026-10-12 に miacis から移った）。ここはコードだけ。**
 
 ## 構成
 
@@ -47,3 +47,16 @@ node --test web/tests/          # ドメインロジックのテスト
 - 静的ページには問いのニックネームを出さない（中高生の投稿が検索に載るため）
 - ラジオ「ミアキスの問いコーナー」で扱った問いは `scripts/radio-episodes.json` に足すと、その問いのページから YouTube の回へリンクされる
 - Google Search Console（URL プレフィックス `https://nirareba0.github.io/toi-site/`）に登録済み。所有権確認は `web/google89fab6771a349d4e.html`（**消さない**）。sitemap は `sitemap.xml` で送信済み
+
+## LINE とつなぐ（2026-10-11〜）
+
+公式LINE「問う応える」（@803ifgkb・運営 たいど）。設計と置き方の手順は AIOS `core/projects/toi-corner/specs/toi-line-sync-20261016.md`。
+
+| ファイル | 中身 |
+|---|---|
+| `supabase/line-notify.sql` | 問いに返事がきたら LINE で知らせる |
+| `supabase/line-sync.sql` | LINE と同期する: トークで答える → 自分だけのノート、毎日／週1の問い（pg_cron）、「みんなに見せる」→ 未承認の返事、端末をまたいだ「自分の問い」 |
+| `supabase/functions/line-webhook/` | Webhook の受け口。本文と署名を `line_webhook()` に渡すだけ |
+| `web/js/line.js` | LIFF。試しのあいだは `?linetest` か LINE から開いた端末にだけ出す（`LINE_PUBLIC`） |
+
+秘密（Messaging API のトークンとチャネルシークレット）は Supabase の Vault にだけ置く。テストは `npm run test:db`（PGlite）。

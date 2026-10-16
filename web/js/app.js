@@ -32,9 +32,13 @@ import {
   getQuestion,
   getPublicQuestionsByIds,
   postQuestion,
-  watchQuestion
+  watchQuestion,
+  linkLineQuestions,
+  myLineQuestions,
+  myLineNotes,
+  deleteLineNote
 } from "./api.js";
-import { lineReady, watchUrl, watchRequest, lineIdToken, FRIEND_URL } from "./line.js";
+import { lineReady, watchUrl, watchRequest, viewRequest, lineIdToken, lineIdTokenIfLoggedIn, FRIEND_URL } from "./line.js";
 
 // アプリケーション状態
 const state = createInitialState();
@@ -53,6 +57,8 @@ const dialogConfirmBtn = document.getElementById("dialog-confirm-btn");
 const dialogCancelBtn = document.getElementById("dialog-cancel-btn");
 
 let pendingRemoveQuestionId = null;
+// LINE とつないで出した問い（受付画面で「LINE で知らせてもらう」を出さない）
+const lineLinkedIds = new Set();
 let activePromptChipId = null;
 let currentRenderedRoute = null;
 
@@ -651,6 +657,14 @@ function renderConfirm() {
       state.lastSubmittedId = newId;
       state.currentDraft = null; // 下書きクリア
 
+      // LINE でログインしていれば、この問いを LINE に結ぶ（ほかの端末でも見え、返事がきたら LINE で知らせる）
+      try {
+        const idToken = await lineIdTokenIfLoggedIn();
+        if (idToken && await linkLineQuestions(idToken, [newId]) > 0) lineLinkedIds.add(newId);
+      } catch (e) {
+        console.warn("LINE に結べませんでした:", e);
+      }
+
       // 受付画面へ遷移
       window.location.hash = `receipt/${newId}`;
     } catch (err) {
@@ -707,7 +721,9 @@ function renderReceipt(questionId) {
         </div>
 
         <div class="receipt-actions">
-          ${lineReady() ? `
+          ${lineLinkedIds.has(questionId) ? `
+          <p class="receipt-sub-notice">LINE とつながっているので、返事がきたら「問う応える」から知らせます。</p>`
+          : lineReady() ? `
           <a href="${watchUrl(questionId)}" class="btn btn-line btn-block">
             返事がきたら LINE で知らせてもらう
           </a>` : ""}
@@ -732,6 +748,7 @@ function renderReceipt(questionId) {
  * 5. 自分への返事 / インボックス (#inbox)
  */
 async function renderInbox() {
+  const lineLinked = await syncLineQuestions();
   const localQuestions = loadMyQuestions(localStorage);
   const seenIds = loadSeenAnswerIds(localStorage);
 
@@ -751,6 +768,12 @@ async function renderInbox() {
       <div class="inbox-header">
         <h1 id="inbox-heading" class="inbox-h1" tabindex="-1">自分への返事</h1>
         <p class="inbox-desc">あなたが送った問いの確認状況や、届いた大人からの返事を読めます。</p>
+        ${lineReady() ? (lineLinked ? `
+          <p class="inbox-desc">LINE とつながっています。ほかの端末や LINE の中で出した問いも、ここに出ます。返事がきたら「問う応える」から知らせます。
+            <a href="#notes">LINE で答えたノート →</a></p>
+        ` : `
+          <button type="button" class="btn btn-line btn-sm" id="btn-line-connect" style="margin-top: 12px;">LINE とつなぐ（ほかの端末と同じ一覧にする）</button>
+        `) : ""}
       </div>
 
       <div class="inbox-list" id="inbox-questions-list">
@@ -825,11 +848,155 @@ async function renderInbox() {
   const h1 = document.getElementById("inbox-heading");
   if (h1) h1.focus();
 
+  document.getElementById("btn-line-connect")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    btn.textContent = "LINE につないでいます…";
+    try {
+      await lineIdToken();   // ログインしていなければ LINE のログイン画面へ移り、この画面に戻ってくる
+      await renderInbox();
+    } catch (err) {
+      console.error(err);
+      btn.disabled = false;
+      btn.textContent = "LINE につながりませんでした。もう一度";
+    }
+  });
+
   // 端末内一覧からの削除
   document.querySelectorAll(".btn-remove-local").forEach(btn => {
     btn.addEventListener("click", () => {
       const qId = btn.getAttribute("data-id");
       openRemoveDialog(qId);
+    });
+  });
+}
+
+/**
+ * LINE でログインしていれば、この端末の問いを LINE に結び、ほかの端末で出した問いをこの端末の一覧に取り込む。
+ * つながっていれば true
+ */
+async function syncLineQuestions() {
+  if (!isConfigured()) return false;
+  const idToken = await lineIdTokenIfLoggedIn();
+  if (!idToken) return false;
+  try {
+    const localIds = loadMyQuestions(localStorage).map(q => q.id);
+    await linkLineQuestions(idToken, localIds);
+    for (const q of await myLineQuestions(idToken)) {
+      if (localIds.includes(q.id)) continue;
+      saveMyQuestion(localStorage, {
+        id: q.id,
+        body: q.body,
+        nickname: q.nickname || "",
+        theme_id: q.theme_id,
+        theme_label: q.theme_label,
+        created_at: q.created_at
+      });
+    }
+    return true;
+  } catch (e) {
+    console.warn("LINE との同期に失敗しました:", e);
+    return false;
+  }
+}
+
+/**
+ * 5-2. LINE で答えたノート (#notes)
+ * 公式LINE「問う応える」に届いた問いへ、トークで答えたもの。LINE でログインした本人だけが読める
+ */
+async function renderNotes() {
+  if (!lineReady() || !isConfigured()) {
+    mainContainer.innerHTML = `
+      <div class="card p-lg text-center" style="max-width: 500px; margin: 2rem auto;">
+        <h1 id="notes-heading" tabindex="-1" class="inbox-h1">ノート</h1>
+        <p>LINE の「問う応える」で答えたことが、ここに残ります。いまは準備中です。</p>
+        <div style="margin-top: 1rem;"><a href="#home" class="btn btn-primary">みんなの問いへ</a></div>
+      </div>
+    `;
+    document.getElementById("notes-heading")?.focus();
+    return;
+  }
+
+  mainContainer.innerHTML = `
+    <div class="inbox-container"><div class="card p-lg text-center"><p style="color: var(--color-body-muted);">LINE につないでいます…</p></div></div>
+  `;
+
+  let notes = null;
+  let idToken = null;
+  try {
+    idToken = await lineIdToken();   // ログインしていなければ LINE のログイン画面へ移り、ここに戻ってくる
+    notes = await myLineNotes(idToken);
+  } catch (e) {
+    console.error(e);
+  }
+
+  const fmt = (iso) => {
+    try {
+      return new Date(iso).toLocaleDateString("ja-JP", { month: "long", day: "numeric" });
+    } catch {
+      return "";
+    }
+  };
+
+  mainContainer.innerHTML = `
+    <div class="inbox-container">
+      <div class="inbox-header">
+        <h1 id="notes-heading" class="inbox-h1" tabindex="-1">自分のノート</h1>
+        <p class="inbox-desc">LINE の「問う応える」に届いた問いへ、トークで答えたことが残ります。読めるのはあなただけです。</p>
+      </div>
+      <div class="inbox-list">
+        ${notes === null ? `
+          <div class="card" style="text-align: center; padding: 36px 20px;">
+            <p style="font-weight: 600; margin-bottom: 8px;">LINE で確かめられませんでした</p>
+            <p style="font-size: 0.875rem; color: var(--color-body-muted);">少し待ってから、もう一度開いてください。</p>
+          </div>
+        ` : notes.length === 0 ? `
+          <div class="card" style="text-align: center; padding: 36px 20px;">
+            <p style="font-weight: 600; margin-bottom: 8px;">まだノートがありません</p>
+            <p style="font-size: 0.875rem; color: var(--color-body-muted); margin-bottom: 20px;">LINE の「問う応える」で「問い」と打つと、問いが1つ届きます。思ったことをそのまま打つと、ここに残ります。</p>
+            <a href="${FRIEND_URL}" class="btn btn-line">「問う応える」を開く</a>
+          </div>
+        ` : notes.map(n => `
+          <article class="inbox-card">
+            <div class="inbox-card-top">
+              <div>
+                <span class="badge badge-topic">${escapeHtml(fmt(n.created_at))}</span>
+                ${n.published ? '<span class="badge badge-status-answered" style="margin-left: 4px;">サイトに載っています</span>'
+                  : n.shared ? '<span class="badge badge-status-pending" style="margin-left: 4px;">サイトに送った・確認中</span>' : ""}
+              </div>
+            </div>
+            ${n.question_body ? `
+              <p class="inbox-status-explain">${n.question_id ? `<a href="#question/${escapeHtml(n.question_id)}">「${escapeHtml(n.question_body)}」</a>` : `「${escapeHtml(n.question_body)}」`}</p>
+            ` : ""}
+            <div class="inbox-body-text" style="white-space: pre-wrap;">${escapeHtml(n.body)}</div>
+            <div class="inbox-card-actions">
+              <button type="button" class="btn btn-outline btn-sm btn-delete-note" data-id="${escapeHtml(n.id)}">消す</button>
+            </div>
+          </article>
+        `).join("")}
+      </div>
+    </div>
+  `;
+  document.getElementById("notes-heading")?.focus();
+
+  document.querySelectorAll(".btn-delete-note").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      // 確かめはブラウザのダイアログを使わず、2回押しにする（LINE の中ではダイアログで止まりやすい）
+      if (btn.dataset.armed !== "1") {
+        btn.dataset.armed = "1";
+        btn.textContent = "もう一度押すと消えます";
+        return;
+      }
+      btn.disabled = true;
+      try {
+        await deleteLineNote(idToken, btn.dataset.id);
+        btn.closest("article")?.remove();
+        announce("ノートを消しました。");
+      } catch (e) {
+        console.error(e);
+        btn.disabled = false;
+        btn.textContent = "消せませんでした。もう一度";
+      }
     });
   });
 }
@@ -1257,6 +1424,8 @@ async function handleRouting() {
       renderReceipt(resolution.paramId);
     } else if (resolution.path === "inbox") {
       await renderInbox();
+    } else if (resolution.path === "notes") {
+      await renderNotes();
     } else if (resolution.path === "question") {
       await renderDetail(resolution.paramId);
     } else if (resolution.path === "about") {
@@ -1317,6 +1486,9 @@ async function boot() {
     await renderWatch(watching);
     return;
   }
+  // LINE のトークやリッチメニューから ?view=notes などで来た → その画面へ
+  const view = viewRequest();
+  if (view) history.replaceState(null, "", `${location.pathname}#${view}`);
   await syncData();
   await handleRouting();
 }

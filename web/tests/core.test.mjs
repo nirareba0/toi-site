@@ -319,6 +319,7 @@ test("6. ルーター解決 (resolveRoute)", async (t) => {
     assert.deepEqual(resolveRoute("#question/q-456"), { type: "route", path: "question", paramId: "q-456" });
     assert.deepEqual(resolveRoute("#about"), { type: "route", path: "about", paramId: undefined });
     assert.deepEqual(resolveRoute("#why"), { type: "route", path: "why", paramId: undefined });
+    assert.deepEqual(resolveRoute("#notes"), { type: "route", path: "notes", paramId: undefined });
   });
 
   await t.test("ページ内アンカーは skip として解決され 404 にならない", () => {
