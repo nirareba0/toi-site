@@ -89,14 +89,21 @@ before(async () => {
   await question('未公開の問い', false);
 });
 
-test('友だち追加 → あいさつと「頻度」のボタン。頻度を選ぶと、その場で問いが1つ届く', async () => {
+test('友だち追加 → あいさつ → ジャンル → 頻度。頻度を選ぶと、その場で問いが1つ届く', async () => {
   await clearSent();
   assert.equal(await hook([follow('U1')]), 1);
-  const [greet] = await lastReply();
+  const [greet, genre] = await lastReply();
   assert.match(greet.text, /人が読んでいません/);
-  assert.deepEqual(quick(greet).map((a) => a.data), ['a=freq&v=daily', 'a=freq&v=weekly', 'a=freq&v=pull']);
+  assert.match(genre.text, /ジャンルを選んで/);
+  assert.deepEqual(quick(genre).map((a) => a.data),
+    ['a=genre&t=ikikata', 'a=genre&t=ningen', 'a=genre&t=gakko', 'a=genre&t=koi', 'a=genre&t=nichijo', 'a=genre&t=all', 'a=genredone']);
   assert.equal((await user('U1')).following, true);
   assert.equal((await user('U1')).frequency, 'pull');
+
+  await hook([press('U1', 'a=genre&t=all')]);            // 「ぜんぶ」はそのまま決まる → 頻度を聞く
+  const [done, freq] = await lastReply();
+  assert.match(done.text, /ジャンル：ぜんぶ/);
+  assert.deepEqual(quick(freq).map((a) => a.data), ['a=freq&v=daily', 'a=freq&v=weekly', 'a=freq&v=pull']);
 
   await hook([press('U1', 'a=freq&v=daily')]);
   assert.equal((await user('U1')).frequency, 'daily');
@@ -107,7 +114,40 @@ test('友だち追加 → あいさつと「頻度」のボタン。頻度を選
   assert.ok(quick(prompt).some((a) => a.uri === 'https://liff.line.me/2011967281-zFeBIrmq?view=notes'));
   assert.ok((await user('U1')).current_question_id);
   // 返しは Reply（数えられない）だけ。Push はしていない
-  assert.deepEqual((await sent()).map(([p]) => p), ['reply', 'reply']);
+  assert.deepEqual((await sent()).map(([p]) => p), ['reply', 'reply', 'reply']);
+});
+
+test('ジャンルを選ぶと、そのジャンルの問いだけが届く。押すたびに入れる／外す。無ければ「ありません」', async () => {
+  const koi = (await admin(`insert into questions (body, approved, theme_id) values ('好きってなに？', true, 'koi') returning id`))[0].id;
+  await admin(`insert into questions (body, approved, theme_id) values ('勉強する意味は？', true, 'gakko')`);
+  await hook([follow('G1')]);
+  await hook([press('G1', 'a=genre&t=koi')]);
+  let [m] = await lastReply();
+  assert.match(m.text, /いま：恋・好き/);
+  assert.ok(quick(m).find((a) => a.data === 'a=genre&t=koi').label.startsWith('✓'));
+  await hook([press('G1', 'a=genre&t=gakko')]);
+  await hook([press('G1', 'a=genre&t=gakko')]);          // もう一度押すと外れる
+  assert.deepEqual((await user('G1')).themes, ['koi']);
+  await hook([press('G1', 'a=genredone')]);
+  assert.match((await lastReply())[0].text, /ジャンル：恋・好き/);
+  await hook([press('G1', 'a=freq&v=pull')]);
+  const prompt = (await lastReply())[1];
+  assert.match(prompt.text, /今日の問い（恋・好き）/);
+  assert.match(prompt.text, /好きってなに？/);
+  assert.equal((await user('G1')).current_question_id, koi);
+  // 2回目以降も恋・好きだけ（1つしか無いので同じ問いを繰り返す）
+  await hook([press('G1', 'a=next')]);
+  assert.match((await lastReply())[0].text, /好きってなに？/);
+  // 「ジャンル」と打つと選び直せる。頻度はもう選んだので、決めたら問いが届く
+  await hook([say('G1', 'ジャンル')]);
+  assert.match((await lastReply())[0].text, /ジャンルを選んで/);
+  await hook([press('G1', 'a=genre&t=koi')]);             // 外す → 何も選んでいない＝ぜんぶ
+  assert.equal((await user('G1')).themes, null);
+  // 問いの無いジャンルだけにすると「ありません」
+  await hook([press('G1', 'a=genre&t=ningen')]);
+  await hook([press('G1', 'a=genredone')]);
+  assert.match((await lastReply())[1].text, /届けられる問いが、いまはありません/);
+  await admin(`update line_users set themes = null where line_user_id = 'G1'`);
 });
 
 test('トークに打った答えはノートに残る。10分以内に続けて打つと1つのノートに続く', async () => {
@@ -188,12 +228,12 @@ test('問いは、届けていないものから選ぶ。自分が出した問�
   await admin('insert into line_question_owners (question_id, line_user_id) values ($1, $2)', [mine, 'U3']);
   await question('消えたいと思うのは変？');
   const got = new Set();
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 5; i++) {
     await hook([press('U3', 'a=next')]);
     got.add((await lastReply())[0].text.match(/「(.+)」/)[1]);
   }
   assert.ok(!got.has('自分の問い') && !got.has('消えたいと思うのは変？') && !got.has('未公開の問い'));
-  assert.equal(got.size, 2);   // 承認済みで届けてよいのは2つ。3回目は前に届けたもの
+  assert.equal(got.size, 4);   // 承認済みで届けてよいのは4つ（ジャンルのテストで2つ足した）。5回目は前に届けたもの
 });
 
 test('署名が合わなければ受け付けない。同じイベントが送り直されても1回だけ扱う。ブロックで止まる', async () => {

@@ -20,7 +20,7 @@ const VIEWS = ["notes", "inbox", "ask", "home"];
 try {
   if (typeof location !== "undefined" && new URLSearchParams(location.search).has("linetest")) localStorage.setItem(TEST_KEY, "1");
   // LINE から開いた（?view= ・ ?watch=）端末も。画面を移ると ?view= は消えるので、ここで覚える
-  else if (typeof location !== "undefined" && (viewRequest() || watchRequest())) localStorage.setItem(TEST_KEY, "1");
+  else if (typeof location !== "undefined" && (viewRequest() || watchRequest() || /[?&](liff.state|liffClientId)=/.test(location.search))) localStorage.setItem(TEST_KEY, "1");
 } catch {
   // localStorage が使えない
 }
@@ -81,6 +81,21 @@ function initLiff() {
 function tokenExpired(liff) {
   const exp = liff.getDecodedIDToken()?.exp;
   return Boolean(exp) && exp * 1000 < Date.now() + 60_000;
+}
+
+/**
+ * LINE から（LIFF で）来たときに、先に LIFF を起こす。
+ * LINE のログインから戻った直後は、行き先（#notes など）が LIFF の liff.state と code に入っていて、
+ * liff.init を呼ぶまで元の URL に戻らない。先に呼ばないと、ホームが開いてしまう（2026-10-16「ノートを見る」が効かなかった）
+ */
+export async function lineBootstrap() {
+  if (typeof location === "undefined") return;
+  if (!/[?&](liff\.state|liffClientId|liffRedirectUri)=/.test(location.search)) return;
+  try {
+    await initLiff();
+  } catch (e) {
+    console.warn("LIFF を起こせませんでした:", e);
+  }
 }
 
 /** LINE の ID トークン。ログインしていなければ LINE のログイン画面へ移る（戻ってくるまで進まない） */

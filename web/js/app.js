@@ -39,7 +39,7 @@ import {
   deleteLineNote,
   reactToAnswer
 } from "./api.js";
-import { lineReady, watchUrl, watchRequest, viewRequest, lineIdToken, lineIdTokenIfLoggedIn, FRIEND_URL } from "./line.js";
+import { lineReady, watchUrl, watchRequest, viewRequest, lineIdToken, lineIdTokenIfLoggedIn, lineBootstrap, FRIEND_URL } from "./line.js";
 
 // アプリケーション状態
 const state = createInitialState();
@@ -1530,6 +1530,8 @@ function renderFooterLinks() {
 
 async function boot() {
   renderFooterLinks();
+  // LINE から来た直後（liff.state・code つき）は、先に LIFF を起こして行き先の URL に戻してもらう
+  await lineBootstrap();
   const watching = watchRequest();
   if (watching && lineReady()) {
     await renderWatch(watching);

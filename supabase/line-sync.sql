@@ -45,6 +45,11 @@ create table if not exists line_users (
 );
 
 -- だれが出した問いか（LINE でログインして出した、または「LINE とつなぐ」で結んだもの）
+-- 2026-10-16 足した: 届く問いのジャンル（themes.id の配列。null＝ぜんぶ）と、頻度を一度選んだか
+-- 本人「登録したときに考えたい問のジャンルとかも答えさせてそのジャンルからしかこないようにしたい」
+alter table line_users add column if not exists themes text[];
+alter table line_users add column if not exists freq_chosen boolean not null default false;
+
 create table if not exists line_question_owners (
   question_id  uuid primary key references questions(id) on delete cascade,
   line_user_id text not null references line_users(line_user_id) on delete cascade,
@@ -210,12 +215,17 @@ language sql immutable as $$
 $$;
 
 -- 問いを1つ選んで「いま答えている問い」にする。まだ届けていない承認済みの問いから。全部届けたら、いちばん前に届けたもの
+-- ジャンルを選んだ人には、そのジャンルの問いだけ（ジャンルの無い問いは届かない）
 create or replace function toi_line_pick(p_sub text, p_via text) returns questions
 language plpgsql volatile security definer set search_path = public as $$
-declare q questions;
+declare
+  q questions;
+  v_themes text[];
 begin
+  select themes into v_themes from line_users where line_user_id = p_sub;
   select * into q from questions qq
    where qq.approved and not toi_line_is_sos(qq.body)
+     and (v_themes is null or qq.theme_id = any(v_themes))
      and not exists (select 1 from line_prompts p where p.line_user_id = p_sub and p.question_id = qq.id)
      and not exists (select 1 from line_question_owners o where o.question_id = qq.id and o.line_user_id = p_sub)
    order by random() limit 1;
@@ -223,7 +233,7 @@ begin
     select qq.* into q from questions qq
       join (select question_id, max(created_at) as last_at from line_prompts where line_user_id = p_sub group by question_id) p
         on p.question_id = qq.id
-     where qq.approved
+     where qq.approved and (v_themes is null or qq.theme_id = any(v_themes))
      order by p.last_at limit 1;
   end if;
   if q.id is null then return null; end if;
@@ -233,15 +243,46 @@ begin
 end;
 $$;
 
-create or replace function toi_line_prompt_message(p_body text, p_title text default '今日の問い') returns jsonb
+drop function if exists toi_line_prompt_message(text, text);   -- 2026-10-16 ジャンルの引数を足したので、古い形を消す（重なると呼び分けられない）
+create or replace function toi_line_prompt_message(p_body text, p_title text default '今日の問い', p_theme text default null) returns jsonb
 language sql stable security definer set search_path = public as $$
   select toi_line_text(
-    '🌱 ' || p_title || chr(10) || chr(10) || '「' || p_body || '」' || chr(10) || chr(10) ||
+    '🌱 ' || p_title || coalesce('（' || (select label from themes where id = p_theme) || '）', '') || chr(10) || chr(10) ||
+    '「' || p_body || '」' || chr(10) || chr(10) ||
     '思ったことを、このトークにそのまま打ってみて。あなただけのノートに残ります（自分で「みんなに見せる」を選ばないかぎり、だれにも見せません）。',
     jsonb_build_array(
       toi_line_qr_postback('別の問い', 'a=next', '別の問いにする'),
       toi_line_qr_uri('ノートを見る', toi_line_liff_url('notes')),
+      toi_line_qr_postback('ジャンル', 'a=genreask', 'ジャンルを変えたい'),
       toi_line_qr_postback('届く頻度', 'a=freqask', '届く頻度を変えたい')));
+$$;
+
+-- ジャンルを選ぶボタン（押すたびに入れる／外す。選んでいるものに ✓）。Miacis のことは館の中の話なので出さない
+create or replace function toi_line_genre_items(p_sub text) returns jsonb
+language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(toi_line_qr_postback(
+           case when t.id = any(coalesce(u.themes, '{}')) then '✓ ' else '' end || t.label,
+           'a=genre&t=' || t.id, t.label) order by t.sort_order), '[]'::jsonb)
+         || jsonb_build_array(
+           toi_line_qr_postback('ぜんぶ', 'a=genre&t=all', 'ぜんぶのジャンル'),
+           toi_line_qr_postback('これで決める', 'a=genredone', 'これで決める'))
+    from themes t left join line_users u on u.line_user_id = p_sub
+   where t.id <> 'miacis';
+$$;
+
+create or replace function toi_line_genre_now(p_sub text) returns text
+language sql stable security definer set search_path = public as $$
+  select coalesce((select string_agg(t.label, '・' order by t.sort_order)
+                     from line_users u join themes t on t.id = any(u.themes)
+                    where u.line_user_id = p_sub), 'ぜんぶ');
+$$;
+
+create or replace function toi_line_genre_message(p_sub text, p_head text default '') returns jsonb
+language sql stable security definer set search_path = public as $$
+  select toi_line_text(p_head ||
+    '考えたい問いのジャンルを選んでね（いくつでも。押すたびに入れる／外す）。' || chr(10) ||
+    'いま：' || toi_line_genre_now(p_sub) || chr(10) || '選んだら「これで決める」。',
+    toi_line_genre_items(p_sub));
 $$;
 
 -- 問いを引いて、その文を返す（無ければ「まだ無い」）
@@ -251,9 +292,10 @@ declare q questions;
 begin
   q := toi_line_pick(p_sub, p_via);
   if q.id is null then
-    return toi_line_text('いま届けられる問いがありません。サイトで問いを出してみてね' || chr(10) || toi_line_setting('site_url'));
+    return toi_line_text('このジャンルで届けられる問いが、いまはありません。ジャンルを足すか、サイトで問いを出してみてね' || chr(10) || toi_line_setting('site_url'),
+      jsonb_build_array(toi_line_qr_postback('ジャンル', 'a=genreask', 'ジャンルを変えたい')));
   end if;
-  return toi_line_prompt_message(q.body);
+  return toi_line_prompt_message(q.body, '今日の問い', q.theme_id);
 end;
 $$;
 
@@ -311,8 +353,8 @@ begin
       'ここには「問い」が届きます。答えをこのトークに打つと、あなただけのノートに残ります。' ||
       'このトークは人が読んでいません。ほかの人の問いと大人の返事はサイトで読めます。' || chr(10) ||
       toi_line_setting('site_url') || chr(10) || chr(10) ||
-      'まず、問いが届く頻度を選んでね（あとで変えられます）。',
-      toi_line_freq_items()));
+      'はじめに、考えたい問いのジャンルを選んでね（あとで変えられます）。'),
+      toi_line_genre_message(v_sub));
   end if;
 
   if v_type = 'postback' then
@@ -322,10 +364,40 @@ begin
         return jsonb_build_array(toi_line_next_prompt(v_sub, 'reply'));
       when 'freqask' then
         return jsonb_build_array(toi_line_text('問いが届く頻度を選んでね。', toi_line_freq_items()));
+      when 'genreask' then
+        return jsonb_build_array(toi_line_genre_message(v_sub));
+      when 'genre' then
+        v_freq := toi_line_param(v_data, 't');   -- ここではジャンルの id
+        if v_freq = 'all' then
+          update line_users set themes = null where line_user_id = v_sub;
+          v_data := 'a=genredone';               -- 「ぜんぶ」は、そのまま決める
+        elsif exists (select 1 from themes where id = v_freq and id <> 'miacis') then
+          update line_users
+             set themes = nullif(case when v_freq = any(coalesce(themes, '{}')) then array_remove(themes, v_freq)
+                                      else array_append(coalesce(themes, '{}'), v_freq) end, '{}')
+           where line_user_id = v_sub;
+          return jsonb_build_array(toi_line_genre_message(v_sub));
+        else
+          return null;
+        end if;
+      else
+        null;   -- 下の case で扱う
+    end case;
+    case toi_line_param(v_data, 'a')
+      when 'genredone' then
+        select * into v_user from line_users where line_user_id = v_sub;
+        if not v_user.freq_chosen then
+          return jsonb_build_array(
+            toi_line_text('届く問いのジャンル：' || toi_line_genre_now(v_sub) || chr(10) || '（「ジャンル」と打つと、いつでも変えられます）'),
+            toi_line_text('つぎに、問いが届く頻度を選んでね。', toi_line_freq_items()));
+        end if;
+        return jsonb_build_array(
+          toi_line_text('届く問いのジャンル：' || toi_line_genre_now(v_sub) || chr(10) || 'さっそく1つ、どうぞ。'),
+          toi_line_next_prompt(v_sub, 'reply'));
       when 'freq' then
         v_freq := toi_line_param(v_data, 'v');
         if v_freq is null or v_freq not in ('daily', 'weekly', 'pull') then return null; end if;
-        update line_users set frequency = v_freq where line_user_id = v_sub;
+        update line_users set frequency = v_freq, freq_chosen = true where line_user_id = v_sub;
         return jsonb_build_array(
           toi_line_text(case v_freq
             when 'daily'  then '毎日 ' || toi_line_setting('push_hour_jst') || '時ごろに、問いが1つ届きます。'
@@ -374,6 +446,9 @@ begin
     if v_text in ('頻度', '届く頻度', '設定') then
       return jsonb_build_array(toi_line_text('問いが届く頻度を選んでね。', toi_line_freq_items()));
     end if;
+    if v_text in ('ジャンル', 'じゃんる', 'ジャンルを変える') then
+      return jsonb_build_array(toi_line_genre_message(v_sub));
+    end if;
     if v_text in ('ノート', '自分のノート') then
       return jsonb_build_array(toi_line_text('あなたのノートはここで読めます（LINE でログインした本人だけ）。' || chr(10) || toi_line_liff_url('notes')));
     end if;
@@ -392,14 +467,18 @@ begin
      order by updated_at desc limit 1;
     if v_note.id is not null and char_length(v_note.body) + 1 + char_length(v_text) <= 2000 then
       update line_notes set body = body || chr(10) || v_text, updated_at = now() where id = v_note.id;
+      v_freq := 'つづき';   -- ここでは「続けて書いた」の印
     else
       insert into line_notes (line_user_id, question_id, body)
       values (v_sub, v_user.current_question_id, left(v_text, 2000))
       returning * into v_note;
     end if;
 
+    -- 途中で送ってしまっても、続きをそのまま送れば同じノートにつながる（本人「途中で送ってしまった場合コピーして続きからかける旨もメッセージに」）
     return jsonb_build_array(toi_line_text(
-      'ノートに残しました。' || chr(10) || 'ほかの人にも読んでほしいときは「みんなに見せる」を押してね（スタッフが確かめてから、サイトに名前なしで載ります）。',
+      case when v_freq = 'つづき' then 'ノートの続きに書き足しました。' else 'ノートに残しました。' end || chr(10) ||
+      '途中で送ってしまっても大丈夫。10分以内なら、続きをそのまま送ると同じノートにつながります（送った文は長押しでコピーして、直して送り直すこともできます）。' || chr(10) ||
+      'ほかの人にも読んでほしいときは「みんなに見せる」を押してね（スタッフが確かめてから、サイトに名前なしで載ります）。',
       jsonb_build_array(
         toi_line_qr_postback('みんなに見せる', 'a=share&n=' || v_note.id, 'みんなに見せる'),
         toi_line_qr_postback('次の問い', 'a=next', '次の問い'),
@@ -462,7 +541,7 @@ begin
   loop
     q := toi_line_pick(u.line_user_id, 'push');
     if q.id is null then exit; end if;
-    v_status := toi_line_push(u.line_user_id, jsonb_build_array(toi_line_prompt_message(q.body)), 'prompt');
+    v_status := toi_line_push(u.line_user_id, jsonb_build_array(toi_line_prompt_message(q.body, '今日の問い', q.theme_id)), 'prompt');
     if v_status = 'capped' then exit; end if;   -- 月の上限。残りの人は来月（「問い」と打てば引ける）
     update line_users set last_pushed_on = v_today where line_user_id = u.line_user_id;
     if v_status = 'sent' then v_sent := v_sent + 1; end if;
@@ -580,7 +659,7 @@ $$;
 -- ---------------------------------------------------------------- 権限
 
 revoke execute on function toi_line_api(text, jsonb), toi_line_reply(text, jsonb), toi_line_push(text, jsonb, text),
-  toi_line_setting(text), toi_line_liff_url(text), toi_line_pick(text, text), toi_line_prompt_message(text, text),
+  toi_line_setting(text), toi_line_liff_url(text), toi_line_pick(text, text), toi_line_prompt_message(text, text, text), toi_line_genre_items(text), toi_line_genre_now(text), toi_line_genre_message(text, text),
   toi_line_next_prompt(text, text), toi_line_signature_ok(text, text), toi_line_handle_event(jsonb),
   toi_line_daily(), toi_line_on_published(), line_webhook(text, text)
   from public, anon, authenticated;
