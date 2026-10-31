@@ -228,6 +228,56 @@ export async function reactToAnswer(answerId, kind) {
   if (error && error.code !== "23505") throw error;   // 23505: もう押してある
 }
 
+// ---- スマホへの通知（supabase/web-push.sql）。端末は投函と同じ client_hash で見分ける（名前・メールは送らない） ----
+
+async function pushRpc(name, args) {
+  if (!sb) {
+    throw new Error("Supabase の接続設定が未完了です。config.js を設定してください。");
+  }
+  const { data, error } = await sb.rpc(name, args);
+  if (error) throw error;
+  return data;
+}
+
+/** 通知の公開の鍵（notify-push が最初に動いたときに作る）。まだ無い・読めないときは "" */
+export async function pushPublicKey() {
+  if (!sb) return "";
+  try {
+    return (await pushRpc("push_public_key", {})) || "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * 通知の購読を保存する（push.mjs の subscriptionInput の形）。この端末で出した問いに返事が載ったら知らせる
+ * @param {{ endpoint: string, p256dh: string, auth: string, questions: boolean }} s
+ */
+export async function savePush(s) {
+  return pushRpc("save_push", {
+    p_endpoint: s.endpoint, p_p256dh: s.p256dh, p_auth: s.auth,
+    p_client_hash: await clientHash(), p_questions: Boolean(s.questions)
+  });
+}
+
+/** 通知の購読を消す */
+export async function deletePush(endpoint) {
+  return pushRpc("delete_push", { p_endpoint: endpoint });
+}
+
+/** 引き継ぎの番号（8けた・15分）を作る。{ code, expires_at } */
+export async function makePushHandoff() {
+  return pushRpc("push_handoff_make", { p_client_hash: await clientHash() });
+}
+
+/**
+ * 引き継ぎの番号を入れて、番号を出した端末（Safari）と結ぶ。
+ * { ok: true, questions: [{ id, body, nickname, theme_id, theme_label, created_at }] } か { ok: false, reason }
+ */
+export async function takePushHandoff(code) {
+  return pushRpc("push_handoff_take", { p_code: code, p_client_hash: await clientHash() });
+}
+
 /** ノートを1つ消す */
 export async function deleteLineNote(idToken, noteId) {
   return lineRpc("line_delete_note", { p_id_token: idToken, p_note_id: noteId });

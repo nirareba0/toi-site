@@ -60,3 +60,60 @@ node --test web/tests/          # ドメインロジックのテスト
 | `web/js/line.js` | LIFF。試しのあいだは `?linetest` か LINE から開いた端末にだけ出す（`LINE_PUBLIC`） |
 
 秘密（Messaging API のトークンとチャネルシークレット）は Supabase の Vault にだけ置く。テストは `npm run test:db`（PGlite）。
+
+## スマホのホーム画面と通知（2026-10-31〜・試し）
+
+「なんでポスト」をスマホのホーム画面に置け、通知（Web Push）が届く。声のログ（`C:\code\toi-voice` の `work/notify-setup.md`・`C:\code\toi-voice-pages`）と同じ形。
+通知に載るのは種類だけ（問いや返事の本文・名前は載らない）。端末は投函と同じ `client_hash` で見分け、名前・メール・LINE の ID は取らない。
+
+| 届く知らせ | いつ |
+|---|---|
+| あなたの問いに返事が届きました（`reply`） | 返事と問いの両方が承認されたとき（LINE の「返事が届いた」と同じ時点） |
+| 新しい問いが届きました（`question`） | 1日1回まで・19時ごろ。前の回から新しく載った問いがあるときだけ（受け取らない設定もできる） |
+
+夜21時〜朝7時に出た知らせは朝7時に送る。時刻は `push_settings` の `question_hour_jst`・`quiet_from_jst`・`quiet_until_jst`。
+
+| ファイル | 中身 |
+|---|---|
+| `web/site.webmanifest`・`web/sw.js` | ホーム画面に置く（アイコン 180/192/512 は `web/assets/`）。sw.js は通知を出し、画面のファイルだけを手元に置く（いつも通信を先に・問いと返事は持たない） |
+| `web/js/push.mjs`・`web/assets/tut-*.svg` | 「スマホに知らせてもらう」（`#notify`）: 機種ごとの3枚の手順・通知を受け取る／やめる・iPhone の引き継ぎの番号 |
+| `supabase/web-push.sql` | 購読・送る列・引き金（返事の承認・新しい問い）・pg_net で関数を呼ぶ・毎時の pg_cron・引き継ぎの番号 |
+| `supabase/functions/notify-push/` | Edge Function。鍵（VAPID）を最初に動いたときに作って Vault に置き、web-push で送る |
+
+iPhone はホーム画面のアプリと Safari で保存場所が分かれる。Safari で出した問いは、Safari の `#notify` で出す8けたの番号（15分）をアプリで入れて引き継ぐ。
+
+**試しの旗**: `?pushtest` を付けて開いた端末にだけ、通知の操作（受付画面・自分への返事・フッターのリンク）が出る。旗の端末では manifest が `site-pushtest.webmanifest`（`start_url` が `./?pushtest`）に替わり、ホーム画面のアイコンからも旗つきで開く。
+みんなに出すときは `web/js/push.mjs` の `PUSH_PUBLIC` を `true` にする。ホーム画面に置くこと自体は旗に関係なくいつでもできる。
+
+### 本番に出す手順（鍵も合言葉も人は扱わない）
+
+1. SQL Editor で `supabase/web-push.sql` を流す（何度流してもよい）。合言葉（Vault の `push_hook_secret`）と毎時の仕事（`toi-web-push-hourly`）までできる。
+   ```sql
+   select name from vault.decrypted_secrets where name = 'push_hook_secret';
+   select jobname, schedule from cron.job where jobname = 'toi-web-push-hourly';
+   ```
+2. Edge Function を置く: Dashboard → Edge Functions →「Deploy a new function」→ 名前 `notify-push` で `index.ts` と `deliver.mjs` を置く（CLI なら `supabase functions deploy notify-push --project-ref btbykfnlsxwmpfcfslxb`）。**JWT の確かめは切らない**（既定のまま。pg_net は `push_settings` の公開の anon キーを付けて呼び、関数はそのうえで合言葉を確かめる）。
+3. 1回 GET して鍵を作る（返るのは公開の鍵だけ）:
+   ```sql
+   select net.http_get(url := (select value from push_settings where key = 'function_url'),
+     headers := jsonb_build_object('authorization', 'Bearer ' || (select value from push_settings where key = 'anon_key')));
+   select status_code, content from net._http_response order by created desc limit 1;  -- 200 と {"publicKey":"…"}（87文字）
+   ```
+4. このブランチを main に入れて push する（GitHub Pages に出る）。
+
+`web/js/config.js` の anon キーを替えたら、`push_settings` の `anon_key` も替える。
+
+### 確かめ方
+
+| # | すること | 見ること |
+|---|---|---|
+| 1 | `npm test`・`npm run test:db` | 全部通る（`web/tests/push.test.mjs`・`supabase/tests/web-push.test.mjs`） |
+| 2 | Android の Chrome で `https://nirareba0.github.io/toi-site/?pushtest#notify` →「ホーム画面に追加」→ アイコンから開く →「通知を受け取る」→ 許可 | 「この端末に通知が届きます」。`select count(*) from push_subscriptions;` が 1 増える |
+| 3 | iPhone（iOS 16.4 以上）の Safari で同じ URL → 共有 →「ホーム画面に追加」→ アイコンから開いて同じ操作 | Safari のままだと「ホーム画面のアイコンから開くと…」と出る（正しい） |
+| 4 | 送る列に手で1行: `insert into push_outbox (endpoint, kind) select endpoint, 'reply' from push_subscriptions limit 1;` | 数秒で「あなたの問いに返事が届きました」。押すと「自分への返事」が開く |
+| 5 | 旗の端末で問いを出し、Table Editor で返事を足して問いと返事を承認する（昼のうちに） | 「あなたの問いに返事が届きました」 |
+| 6 | Edge Functions → notify-push → Logs | `{"sent":1,"dropped":0,"failed":0}` のような数だけ（宛先・中身・鍵は出ない） |
+
+届かないとき: `select status_code from net._http_response order by created desc limit 5;`（401 は合言葉、404 は関数の名前）・`select * from push_outbox;`（夜の分は朝まで残る）。
+鍵を替えたいときは Vault の `vapid_public_key`・`vapid_private_key` を消して手順3をもう一度（端末側は「通知をやめる」→「通知を受け取る」で入れ直す）。
+通知は Apple・Google などの送り先（push service）を通る。中身は暗号化されて読めないが、「いつ通知が来たか」は送り先に分かる。

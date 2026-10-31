@@ -37,9 +37,32 @@ import {
   myLineQuestions,
   myLineNotes,
   deleteLineNote,
-  reactToAnswer
+  reactToAnswer,
+  pushPublicKey,
+  savePush,
+  deletePush,
+  makePushHandoff,
+  takePushHandoff
 } from "./api.js";
 import { lineReady, watchUrl, watchRequest, viewRequest, lineIdToken, lineIdTokenIfLoggedIn, lineBootstrap, FRIEND_URL } from "./line.js";
+import {
+  pushReady, manifestFor, TUTORIAL, PLATFORMS, PLATFORM_LABELS, STATE_TEXT, HANDOFF_REASON_TEXT,
+  platformOf, isIos, isStandalone, pushState, turnOn, turnOff, setQuestions,
+  formatHandoffCode, isHandoffCode
+} from "./push.mjs";
+
+// スマホへの通知（push.mjs）。試しのあいだは ?pushtest で開いた端末だけ（PUSH_PUBLIC）
+let safeStorage = null;
+try { safeStorage = window.localStorage; } catch { /* 使えない */ }
+const pushOn = pushReady({ search: location.search, storage: safeStorage });
+// 試しの端末では、ホーム画面に置いたアイコンも ?pushtest つきで開くように manifest を差し替える
+document.querySelector('link[rel="manifest"]')?.setAttribute("href", manifestFor(pushOn));
+
+// ホーム画面に置けるように、また通知を受け取れるように、service worker を置く（sw.js）。
+// sw.js はいつも通信で新しい版を取るので、入れ替わっても読み直さない（書きかけの問いを消さないため）
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  navigator.serviceWorker.register("sw.js").catch(() => { /* 置けなくても、いつもどおり開ける */ });
+}
 
 // アプリケーション状態
 const state = createInitialState();
@@ -728,6 +751,10 @@ function renderReceipt(questionId) {
           <a href="${watchUrl(questionId)}" class="btn btn-line btn-block">
             返事がきたら LINE で知らせてもらう
           </a>` : ""}
+          ${pushOn ? `
+          <a href="#notify" class="btn btn-outline btn-block">
+            返事がきたらスマホに知らせてもらう
+          </a>` : ""}
           <a href="#inbox" class="btn btn-primary btn-block">
             自分への返事を見に行く
           </a>
@@ -775,6 +802,7 @@ async function renderInbox() {
         ` : `
           <button type="button" class="btn btn-line btn-sm" id="btn-line-connect" style="margin-top: 12px;">LINE とつなぐ（ほかの端末と同じ一覧にする）</button>
         `) : ""}
+        ${pushOn ? `<p class="inbox-desc"><a href="#notify">返事がきたらスマホに知らせてもらう →</a></p>` : ""}
       </div>
 
       <div class="inbox-list" id="inbox-questions-list">
@@ -1462,6 +1490,218 @@ appDialog.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeRemoveDialog();
 });
 
+/**
+ * 5-3. スマホに知らせてもらう (#notify)
+ * 機種ごとに「ホーム画面に置く → ホーム画面から開く → 通知を許可」の3枚。下に、いまの状態と「通知を受け取る」。
+ * iPhone はホーム画面のアプリと Safari で保存場所が分かれるので、Safari で出した問いは「引き継ぎの番号」で結ぶ（push.mjs・supabase/web-push.sql）
+ */
+const PUSH_QUESTIONS_KEY = "toi.push_questions";
+let notifyPlatform = null;
+
+function wantsQuestionNotices() {
+  try { return localStorage.getItem(PUSH_QUESTIONS_KEY) !== "0"; } catch { return true; }
+}
+
+async function renderNotify() {
+  if (!pushOn || !isConfigured()) {
+    mainContainer.innerHTML = `
+      <div class="inbox-container"><div class="card p-lg text-center">
+        <h1 id="notify-heading" tabindex="-1" class="inbox-h1">スマホに知らせてもらう</h1>
+        <p>いまは準備中です。返事は「自分への返事」で読めます。</p>
+        <div style="margin-top: 1rem;"><a href="#inbox" class="btn btn-primary">自分への返事へ</a></div>
+      </div></div>
+    `;
+    document.getElementById("notify-heading")?.focus();
+    return;
+  }
+
+  const win = window;
+  const platform = notifyPlatform ?? platformOf(navigator.userAgent);
+  const ios = isIos(navigator.userAgent, navigator.maxTouchPoints);
+  const standalone = isStandalone(win);
+  const publicKey = await pushPublicKey();
+  const st = await pushState({ win, publicKey });
+  const steps = TUTORIAL[platform];
+  const hasLocal = loadMyQuestions(localStorage).length > 0;
+  const wantQuestions = wantsQuestionNotices();
+
+  // 引き継ぎ（iPhone だけ）: Safari では番号を出す、ホーム画面のアプリでは番号を入れる
+  let handoffHtml = "";
+  if (ios && !standalone && hasLocal) {
+    handoffHtml = `
+      <section class="inbox-card notify-box" aria-labelledby="handoff-title">
+        <h2 id="handoff-title" class="notify-step-title">Safari で出した問いを、ホーム画面のアプリに引き継ぐ</h2>
+        <p class="notify-text">ホーム画面のアプリは、Safari とは別の場所に記録します。Safari で出した問いの返事もアプリに知らせるには、ここで番号を出し、アプリを開いて入れてください。</p>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-handoff-make">引き継ぎの番号を出す</button>
+        <p class="notify-code" id="handoff-code" role="status" hidden></p>
+      </section>`;
+  } else if (ios && standalone) {
+    handoffHtml = `
+      <section class="inbox-card notify-box" aria-labelledby="handoff-title">
+        <h2 id="handoff-title" class="notify-step-title">Safari で出した問いがあるとき</h2>
+        <p class="notify-text">Safari で「なんでポスト」のこの画面を開き、「引き継ぎの番号を出す」を押して、出た8けたの番号をここに入れてください。</p>
+        <form id="handoff-form" class="notify-handoff-form" novalidate>
+          <label for="handoff-input" class="form-label">引き継ぎの番号（8けた）</label>
+          <div class="notify-handoff-row">
+            <input id="handoff-input" class="form-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12">
+            <button type="submit" class="btn btn-secondary btn-sm">引き継ぐ</button>
+          </div>
+        </form>
+        <p class="notify-text" id="handoff-out" role="status"></p>
+      </section>`;
+  }
+
+  mainContainer.innerHTML = `
+    <div class="inbox-container">
+      <div class="inbox-header">
+        <h1 id="notify-heading" class="inbox-h1" tabindex="-1">スマホに知らせてもらう</h1>
+        <p class="inbox-desc">ホーム画面に「なんでポスト」を置くと、あなたの問いに返事が届いたときと、新しい問いが届いたときに、スマホに知らせます。
+          通知に問いの中身や名前は出ません。名前やメールアドレスを入れる必要もありません。</p>
+      </div>
+
+      <div class="notify-platforms" role="group" aria-label="使っている機種">
+        ${PLATFORMS.map(p => `<button type="button" class="chip-btn ${p === platform ? "active" : ""}" data-platform="${p}" aria-pressed="${p === platform}">${PLATFORM_LABELS[p]}</button>`).join("")}
+      </div>
+
+      <ol class="notify-steps">
+        ${steps.map((s, i) => `
+          <li class="inbox-card notify-step">
+            <img src="${s.img}" alt="" width="96" height="115">
+            <div>
+              <span class="notify-step-num">${i + 1} / ${steps.length}</span>
+              <h2 class="notify-step-title">${s.title}</h2>
+              <p class="notify-text">${s.text}</p>
+            </div>
+          </li>`).join("")}
+      </ol>
+
+      ${handoffHtml}
+
+      <section class="inbox-card notify-box" aria-live="polite">
+        ${STATE_TEXT[st] ? `<p class="notify-state" role="status">${STATE_TEXT[st]}</p>` : ""}
+        ${st === "off" || st === "on" ? `
+          <label class="checkbox-agree-label">
+            <input type="checkbox" class="checkbox-agree-input" id="notify-questions" ${wantQuestions ? "checked" : ""}>
+            新しい問いが届いたときも知らせる（1日1回まで・夜7時ごろ）
+          </label>` : ""}
+        ${st === "off" ? `<button type="button" class="btn btn-primary btn-block" id="btn-push-on">通知を受け取る</button>` : ""}
+        ${st === "on" ? `<button type="button" class="btn btn-outline btn-sm" id="btn-push-off">通知をやめる</button>` : ""}
+        <p class="notify-error" id="notify-out" role="alert"></p>
+      </section>
+
+      <p class="notify-note">夜9時から朝7時のあいだは鳴らしません（朝7時ごろに届きます）。</p>
+      <p class="notify-note"><a href="#inbox">自分への返事へ</a></p>
+    </div>
+  `;
+  document.getElementById("notify-heading")?.focus();
+
+  const out = document.getElementById("notify-out");
+  const fail = (e) => {
+    console.error(e);
+    out.textContent = "うまくいきませんでした。少し待ってから、もう一度押してください。";
+  };
+
+  mainContainer.querySelectorAll("[data-platform]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      notifyPlatform = btn.getAttribute("data-platform");
+      renderNotify();
+    });
+  });
+
+  const questionsBox = document.getElementById("notify-questions");
+  questionsBox?.addEventListener("change", async () => {
+    try { localStorage.setItem(PUSH_QUESTIONS_KEY, questionsBox.checked ? "1" : "0"); } catch { /* 使えない */ }
+    if (st !== "on") return;
+    try {
+      await setQuestions({ win, save: savePush, questions: questionsBox.checked });
+      announce(questionsBox.checked ? "新しい問いの知らせも届きます" : "新しい問いの知らせは届きません");
+    } catch (e) {
+      fail(e);
+    }
+  });
+
+  // iPhone は、ボタンの操作の中で許可を聞く（turnOn の最初で requestPermission）
+  document.getElementById("btn-push-on")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      await turnOn({ win, publicKey, save: savePush, questions: questionsBox ? questionsBox.checked : true });
+      await renderNotify();
+      announce("この端末に通知が届きます");
+    } catch (err) {
+      btn.disabled = false;
+      fail(err);
+    }
+  });
+
+  document.getElementById("btn-push-off")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      await turnOff({ win, remove: deletePush });
+      await renderNotify();
+      announce("通知をやめました");
+    } catch (err) {
+      btn.disabled = false;
+      fail(err);
+    }
+  });
+
+  document.getElementById("btn-handoff-make")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const codeOut = document.getElementById("handoff-code");
+    btn.disabled = true;
+    try {
+      const r = await makePushHandoff();
+      codeOut.innerHTML = `<span class="notify-code-num">${escapeHtml(formatHandoffCode(r.code))}</span>
+        <span class="notify-text">15分だけ使えます。ホーム画面の「なんでポスト」を開き、この画面で入れてください。</span>`;
+      codeOut.hidden = false;
+      btn.textContent = "番号を出し直す";
+    } catch (err) {
+      fail(err);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.getElementById("handoff-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const input = document.getElementById("handoff-input");
+    const msg = document.getElementById("handoff-out");
+    if (!isHandoffCode(input.value)) {
+      msg.textContent = "8けたの数字を入れてください。";
+      return;
+    }
+    const submitBtn = e.currentTarget.querySelector("button[type=submit]");
+    submitBtn.disabled = true;
+    try {
+      const r = await takePushHandoff(input.value);
+      if (!r?.ok) {
+        msg.textContent = HANDOFF_REASON_TEXT[r?.reason] || HANDOFF_REASON_TEXT.code;
+        return;
+      }
+      const localIds = new Set(loadMyQuestions(localStorage).map(q => q.id));
+      let added = 0;
+      for (const q of r.questions || []) {
+        if (localIds.has(q.id)) continue;
+        saveMyQuestion(localStorage, {
+          id: q.id, body: q.body, nickname: q.nickname || "", theme_id: q.theme_id,
+          theme_label: q.theme_label, created_at: q.created_at
+        });
+        added++;
+      }
+      input.value = "";
+      msg.textContent = `引き継ぎました（問い ${added} 件）。Safari で出した問いに返事が届いたときも、このアプリに知らせます。`;
+      updateNavigation("notify");
+    } catch (err) {
+      console.error(err);
+      msg.textContent = "うまくいきませんでした。少し待ってから、もう一度入れてください。";
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+}
+
 /* ==========================================================================
    ルーター (Hash Routing)
    ========================================================================== */
@@ -1506,6 +1746,8 @@ async function handleRouting() {
       await renderInbox();
     } else if (resolution.path === "notes") {
       await renderNotes();
+    } else if (resolution.path === "notify") {
+      await renderNotify();
     } else if (resolution.path === "question") {
       await renderDetail(resolution.paramId);
     } else if (resolution.path === "about") {
@@ -1558,6 +1800,13 @@ function renderFooterLinks() {
     a.className = "footer-link external-link";
     a.textContent = l.label;
     container.appendChild(a);
+  }
+  if (pushOn && !container.querySelector('a[href="#notify"]')) {
+    const a = document.createElement("a");
+    a.href = "#notify";
+    a.className = "footer-link";
+    a.textContent = "スマホに知らせてもらう";
+    container.insertBefore(a, container.querySelector('a[href="#inbox"]')?.nextSibling ?? null);
   }
 }
 
