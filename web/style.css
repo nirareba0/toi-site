@@ -2058,3 +2058,164 @@ body {
   font-size: 0.875rem;
   margin-top: 6px;
 }
+
+/* ==========================================================================
+   運営の確認（#staff。staff.mjs・supabase/staff-review.sql）。運営の端末にだけ「承認」が出る
+   ========================================================================== */
+
+.staff-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  margin-left: auto;
+  padding: 4px 12px;
+  border: 1px solid var(--color-vivid-blue);
+  border-radius: var(--radius-full);
+  color: var(--color-vivid-blue);
+  background-color: var(--color-white);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.staff-pill:hover { background-color: var(--color-pale-blue); }
+.staff-pill-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-danger);
+  color: var(--color-white);
+  font-size: 0.75rem;
+}
+@media (min-width: 768px) {
+  .staff-pill { margin-right: 20px; }
+}
+
+.staff-container { max-width: 560px; }
+
+.staff-pair { display: flex; flex-direction: column; gap: 12px; }
+.staff-pair-label { font-weight: 700; font-size: 0.875rem; }
+.staff-pair-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--color-vivid-blue);
+  text-align: center;
+  line-height: 1.2;
+}
+.staff-steps { padding-left: 1.25em; display: flex; flex-direction: column; gap: 8px; font-size: 0.875rem; }
+.staff-sql {
+  margin: 6px 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background-color: var(--color-pale-blue-subtle);
+  border: 1px solid var(--color-border);
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: all;
+}
+.staff-pair-state { font-weight: 600; }
+
+.staff-notice { text-align: left; }
+
+.staff-card {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.staff-card-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.staff-kind {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+}
+.staff-kind--question { background-color: var(--color-pale-blue); color: var(--color-vivid-blue); }
+.staff-kind--answer { background-color: var(--color-pale-yellow); color: var(--color-body); }
+.staff-meta { font-size: 0.8125rem; color: var(--color-body-muted); }
+
+.staff-flags { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.staff-flag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+}
+.staff-flag--danger { background-color: var(--color-danger-bg); color: var(--color-danger); border-color: #f3b3b3; }
+.staff-flag--warn { background-color: #fff4e5; color: #8a4f00; border-color: #ffd8a8; }
+.staff-flag--muted { background-color: #eef1f5; color: var(--color-body-muted); border-color: #d9dee6; }
+.staff-flag--ok { background-color: var(--color-success-bg); color: var(--color-success); border-color: #b7ebcf; }
+
+.staff-target {
+  border-left: 3px solid var(--color-border);
+  padding: 4px 0 4px 10px;
+}
+.staff-target-label { font-size: 0.75rem; color: var(--color-body-muted); font-weight: 700; display: flex; gap: 8px; flex-wrap: wrap; }
+.staff-target-pending { color: #8a4f00; }
+.staff-target-body { font-size: 0.875rem; color: var(--color-body-muted); }
+
+.staff-body {
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  outline: none;
+}
+.staff-sub { font-size: 0.8125rem; color: var(--color-body-muted); }
+.staff-note { font-size: 0.8125rem; color: #8a4f00; }
+.staff-note--sos { color: var(--color-danger); font-weight: 700; }
+
+.staff-actions {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+.staff-btn { min-height: 52px; font-size: 1rem; padding: 8px 6px; }
+.staff-btn:disabled { opacity: 0.6; cursor: default; }
+.staff-btn-reject {
+  background-color: var(--color-white);
+  color: var(--color-danger);
+  border-color: #f3b3b3;
+}
+.staff-btn-reject:hover { background-color: var(--color-danger-bg); }
+.staff-progress { margin-top: 8px; font-size: 0.8125rem; color: var(--color-body-muted); text-align: center; }
+
+.staff-undo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 0.875rem;
+}
+.staff-link-btn {
+  min-height: 44px;
+  padding: 0 8px;
+  border: none;
+  background: none;
+  color: var(--color-vivid-blue);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.staff-empty { display: flex; flex-direction: column; gap: 10px; text-align: center; }
+.staff-empty-title { font-weight: 700; font-size: 1rem; }
+
+.staff-device { margin-top: 24px; font-size: 0.8125rem; color: var(--color-body-muted); }
+.staff-device summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+.staff-device .btn { margin-top: 8px; }

@@ -325,6 +325,34 @@ export async function appDeleteNote(noteId) {
   return pushRpc("app_delete_note", { p_client_hash: await clientHash(), p_note_id: noteId });
 }
 
+// ---- 運営の承認（supabase/staff-review.sql）。token は端末の localStorage の印（staff.mjs）。DB はそのハッシュだけを持ち、毎回確かめる ----
+// 通知の宛先を見つけるため、端末の client_hash も渡す（投函・通知と同じ印）
+
+/** 登録コードをもらう。{ ok, staff, code?, expires_at? } か { ok: false, reason: "busy" } */
+export async function staffPairStart(token) {
+  return pushRpc("staff_pair_start", { p_token: token, p_client_hash: await clientHash() });
+}
+
+/** この端末は運営の端末か。{ staff: true, number, pending, gets_notice } か { staff: false, waiting } */
+export async function staffStatus(token) {
+  return pushRpc("staff_status", { p_token: token, p_client_hash: await clientHash() });
+}
+
+/** 承認待ちの一覧（古い順）。{ pending, items: [{ kind, id, body, flags, ... }] }。運営の端末でなければ not_staff で断られる */
+export async function staffQueue(token) {
+  return pushRpc("staff_queue", { p_token: token });
+}
+
+/** 1枚を決める。kind: question / answer、action: approve / reject / restore / hold。{ ok, changed, pending } */
+export async function staffDecide(token, kind, id, action) {
+  return pushRpc("staff_decide", { p_token: token, p_kind: kind, p_id: id, p_action: action });
+}
+
+/** この端末を運営の端末から外す */
+export async function staffLeave(token) {
+  return pushRpc("staff_leave", { p_token: token });
+}
+
 export async function postQuestion({ id, body, nickname = "", theme_id = null }) {
   if (!sb) {
     throw new Error("Supabase の接続設定が未完了です。config.js を設定してください。");

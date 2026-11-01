@@ -167,3 +167,50 @@ LINE の ID の代わりに、端末の `client_hash`（投函・通知と同じ
 みんなに出すときは `web/js/push.mjs` の `PUSH_PUBLIC` を `true` にする（通知と同時）。
 
 テスト: `web/tests/standalone.test.mjs`・`supabase/tests/app-standalone.test.mjs`。
+
+## 運営の承認を毎日スマホで（2026-11-01〜）
+
+本人「問いのスタッフ確認中が面倒だから、確認用に毎日なにか動かして承認するシステム欲しい」→ A を選んだ形。
+決まった時刻に未承認の問い・返事を DB の中で下読みし、運営のスマホに「承認待ちが届いています」と知らせる。開くと `#staff` にカードが古い順に並び、見立てを見ながら「載せる／保留／載せない」を押す。**載せるのは人。自動で載る道は作っていない**（`approved` を変えられるのは運営の端末の印を確かめる `staff_decide` だけ。anon・authenticated の update は RLS で効かない。テストで確かめている）。
+
+| できること | 中身 |
+|---|---|
+| 運営の端末の登録 | 端末が推測できない印（64 桁の 16 進）を作って localStorage に置き、DB はそのハッシュだけを持つ。登録は本人が SQL Editor で1行流す（ダッシュボードのログインが本人確認）。人は秘密の値を見ない・写さない |
+| 下読み（外の API は使わない） | 相談先が要る言葉（`toi_line_is_sos`）・連絡先（電話・メール・URL・LINE などの ID）・学校名・住所の番地・人名（さん・くん・先生など。粗い）・同じ端末から前後30分に3件以上。どれも無ければ「気になる点なし」。判定は `toi_review_flags`（純粋な関数）と `toi_review_burst` |
+| 決まった時刻の知らせ | `push_settings` の `review_times_jst`（既定 `07:30,19:30`。協力隊の勤務時間の外）に、未承認が1件以上あるときだけ運営の端末へ Push の種類 `review`。件数・本文・名前は載せない。夜21時〜朝7時に当たる時刻なら朝7時に回す。押すと `#staff` |
+| `#staff` | 1枚ずつ: 問い・返事の本文、どの問いへの返事か（問いがまだ確認中ならそう出る）、立場・どこから来たか・投稿時刻、下読みの札（赤＝相談先、橙＝個人の情報らしきもの、灰＝連投、緑＝なし）。「載せる」＝ `approved = true`・`approved_at`（いまある引き金が「返事が届きました」「載りました」などを知らせる）、「保留」＝そのまま残す、「載せない」＝消さずに `rejected_at` を付けて一覧から外す（直前の1枚は「取り消す」で戻せる）。0件なら「承認待ちはありません」 |
+| ヘッダーの「承認」 | 運営の端末だけに出る（件数のバッジ）。ほかの人の見た目は変わらない。運営でない端末で `#staff` を開いても、登録コードの画面しか出ない |
+
+| ファイル | 中身 |
+|---|---|
+| `supabase/staff-review.sql` | `rejected_at` の列、`staff_devices`・`staff_pair_codes`・`staff_review_slots`（どれも非公開）、下読み、5分ごとの `toi_staff_tick`（pg_cron `toi-staff-review`）、本人が流す `toi_staff_pair`・`toi_staff_list`・`toi_staff_unpair`、ブラウザから呼ぶ `staff_pair_start`・`staff_status`・`staff_queue`・`staff_decide`・`staff_leave`、送る列の種類 `review` |
+| `web/js/staff.mjs` | 画面に依らない決まり（印・登録コードの見せ方・札の色と言葉・1枚ずつの順番） |
+| `web/js/app.js` | `#staff`・ヘッダーの「承認」 |
+
+### 本番に出す手順（「アプリだけで答える」を含めた全体の順番）
+
+1. Edge Function `notify-push` を置き直す（`deliver.mjs` が `today` などと `review` を知る。先にしないと新しい種類が「返事が届きました」で届く）。**JWT の確かめは切らない**
+2. SQL Editor で `supabase/app-standalone.sql` を流す（まだなら。何度流してもよい）
+3. SQL Editor で `supabase/staff-review.sql` を流す（`web-push.sql`・`app-standalone.sql` のあと。何度流してもよい）。
+   ```sql
+   select jobname, schedule from cron.job where jobname = 'toi-staff-review';   -- */5 * * * *
+   select value from push_settings where key = 'review_times_jst';              -- 07:30,19:30
+   select pg_get_constraintdef(oid) from pg_constraint where conname = 'push_outbox_kind_check';  -- review が入っている
+   ```
+4. このブランチを main に入れて push する（GitHub Pages に出る）
+5. 下の「運営の端末の登録」をする
+
+時刻を変えるとき: `update push_settings set value = '07:30,19:30' where key = 'review_times_jst';`（JST・カンマ区切り）。
+
+### 運営の端末の登録（本人がすること）
+
+1. 運営のスマホで、ホーム画面の「なんでポスト」のアイコンから開き、`https://nirareba0.github.io/toi-site/#staff` に行く（iPhone はホーム画面のアプリと Safari が別の端末になるので、通知を受け取るほうで）。6けたの登録コード（10分有効）と、SQL Editor に貼る1行が出る
+2. パソコンなどで Supabase のダッシュボードにログイン → SQL Editor で、画面に出た1行を流す: `select toi_staff_pair('123456');`（名前を付けるなら `select toi_staff_pair('123456', '本人の iPhone');`）
+3. スマホの画面がひとりでに「承認待ち」に切り替わる。上に「この端末に『承認待ち』の知らせを届ける」と出ていたら押して、通知を受け取る（`#notify`）
+4. 確かめ: `select * from toi_staff_list();`（`gets_notice` が true なら知らせが届く）
+
+外すとき: `select * from toi_staff_list();` で番号を見て `select toi_staff_unpair('<番号>');`（全部なら `'all'`）。スマホの `#staff` の「この端末について」からも外せる。運営の端末は10台まで。
+
+確かめ方（本番）: 登録した端末で未承認の問いがある状態にして、`select toi_staff_tick(now());` を時刻の1時間のうちに流す（その時刻の回がまだなら、運営の端末へ `review` が入る）。または `insert into push_outbox (endpoint, kind) select endpoint, 'review' from push_subscriptions where client_hash in (select client_hash from staff_devices);` で数秒で届く。
+
+テスト: `web/tests/staff.test.mjs`・`supabase/tests/staff-review.test.mjs`。

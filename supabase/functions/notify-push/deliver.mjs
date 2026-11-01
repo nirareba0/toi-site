@@ -5,8 +5,9 @@
 
 // reply: 自分の問いに返事が載った／question: 新しい問いが載った（web-push.sql）
 // today: 今日の問いが届いた／published: 答えが載った／reaction: 載った答えに反応／other_answer: 答えた問いにほかの返事（app-standalone.sql）
+// review: 運営の端末へ「承認待ちが届いています」（staff-review.sql）
 // web/js/push.mjs の PUSH_KINDS と同じ。ここに無い種類は「返事」として送ってしまうので、種類を足したら先にこの関数を置き直してから SQL を流す
-export const KINDS = ['reply', 'question', 'today', 'published', 'reaction', 'other_answer'];
+export const KINDS = ['reply', 'question', 'today', 'published', 'reaction', 'other_answer', 'review'];
 // 届かなかったら、1日で捨ててもらう（古い知らせは意味がない）
 export const TTL_SEC = 24 * 60 * 60;
 

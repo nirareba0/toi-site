@@ -115,10 +115,11 @@ begin
   end loop;
 end $$;
 
--- 送る列に新しい種類を足す（web-push.sql の表。流し直しても同じ）
+-- 送る列に新しい種類を足す（web-push.sql の表。流し直しても同じ）。
+-- review は運営への「承認待ち」（staff-review.sql）。あちらと同じ並びにしておく（このファイルを流し直しても消えないように）
 alter table push_outbox drop constraint if exists push_outbox_kind_check;
 alter table push_outbox add constraint push_outbox_kind_check
-  check (kind in ('reply', 'question', 'today', 'published', 'reaction', 'other_answer'));
+  check (kind in ('reply', 'question', 'today', 'published', 'reaction', 'other_answer', 'review'));
 
 -- ---------------------------------------------------------------- 中で使うもの
 

@@ -49,15 +49,24 @@ import {
   appAnswer,
   appShareNote,
   appMyNotes,
-  appDeleteNote
+  appDeleteNote,
+  staffPairStart,
+  staffStatus,
+  staffQueue,
+  staffDecide,
+  staffLeave
 } from "./api.js";
+import {
+  loadStaffToken, forgetStaffToken, formatPairCode, pairSql, untilText, flagChips, FLAG_INFO, originText, postedText, badgeText,
+  createReview, currentItem, remaining, advance, reviewHeld, STAFF_REASON_TEXT
+} from "./staff.mjs";
 import {
   checkAnswer, reasonText, SOS_CONTACTS, SOS_LEAD, SOS_TAIL, telHref, MAX_ANSWER_LENGTH,
   FREQUENCIES, isFrequency, frequencyText, selectableThemes, toggleTheme, themesLabel, noteStatus, deliveredText
 } from "./standalone.mjs";
 import { lineReady, watchUrl, watchRequest, viewRequest, lineIdToken, lineIdTokenIfLoggedIn, lineBootstrap, FRIEND_URL } from "./line.js";
 import {
-  pushReady, manifestFor, TUTORIAL, PLATFORMS, PLATFORM_LABELS, STATE_TEXT, HANDOFF_REASON_TEXT,
+  PUSH_TEST_KEY, pushReady, manifestFor, TUTORIAL, PLATFORMS, PLATFORM_LABELS, STATE_TEXT, HANDOFF_REASON_TEXT,
   platformOf, isIos, isStandalone, pushState, turnOn, turnOff, setQuestions,
   formatHandoffCode, isHandoffCode
 } from "./push.mjs";
@@ -2224,6 +2233,350 @@ async function renderNotify() {
 }
 
 /* ==========================================================================
+   運営の確認 (#staff)。supabase/staff-review.sql・js/staff.mjs
+   運営の端末だけが承認待ちを読める。ほかの端末には登録コードの画面だけ（投稿した人の見た目は変わらない）
+   ========================================================================== */
+
+let staffToken = null;     // この端末の印（localStorage。DB はハッシュだけ）
+let staffReview = null;    // 1枚ずつの状態（staff.mjs の createReview）
+let staffPending = 0;      // 承認待ちの数（DB の数。一覧は200件まで）
+let staffMeta = { number: "", getsNotice: false };
+let staffPollTimer = null;
+
+function stopStaffPoll() {
+  if (staffPollTimer) {
+    clearTimeout(staffPollTimer);
+    staffPollTimer = null;
+  }
+}
+
+/** ヘッダーの「承認」（運営の端末だけ）。n が null なら外す */
+function setStaffPill(n) {
+  let pill = document.getElementById("staff-pill");
+  if (n === null || n === undefined) {
+    pill?.remove();
+    return;
+  }
+  if (!pill) {
+    const header = document.querySelector(".header-container");
+    if (!header) return;
+    pill = document.createElement("a");
+    pill.id = "staff-pill";
+    pill.href = "#staff";
+    pill.className = "staff-pill";
+    header.insertBefore(pill, header.querySelector(".desktop-nav"));
+  }
+  const badge = badgeText(n);
+  pill.innerHTML = `承認${badge ? `<span class="staff-pill-count">${badge}</span>` : ""}`;
+  pill.setAttribute("aria-label", badge ? `運営の確認（承認待ち ${badge} 件）` : "運営の確認（承認待ちはありません）");
+}
+
+/** 起動時: この端末が運営の端末なら、ヘッダーに「承認」を出す（印を持っている端末だけ問い合わせる） */
+async function setupStaffPill() {
+  if (!isConfigured()) return;
+  const token = loadStaffToken(safeStorage);
+  if (!token) return;
+  try {
+    const st = await staffStatus(token);
+    setStaffPill(st?.staff ? st.pending : null);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function staffMessageHtml(title, text, { retry = false } = {}) {
+  return `
+    <div class="inbox-container staff-container"><div class="card p-lg text-center">
+      <h1 id="staff-heading" tabindex="-1" class="inbox-h1">${escapeHtml(title)}</h1>
+      <p>${escapeHtml(text)}</p>
+      <div style="margin-top: 1rem;">${retry ? `<button type="button" class="btn btn-primary" id="btn-staff-retry">もう一度</button>` : `<a href="#home" class="btn btn-primary">みんなの問いへ</a>`}</div>
+    </div></div>`;
+}
+
+function showStaffMessage(title, text, { retry = false } = {}) {
+  mainContainer.innerHTML = staffMessageHtml(title, text, { retry });
+  document.getElementById("btn-staff-retry")?.addEventListener("click", () => renderStaff());
+  document.getElementById("staff-heading")?.focus();
+}
+
+const STAFF_LOADING = `<div class="inbox-container"><div class="card p-lg text-center"><p style="color: var(--color-body-muted);">読み込み中...</p></div></div>`;
+
+async function renderStaff() {
+  stopStaffPoll();
+  if (!isConfigured()) {
+    showStaffMessage("運営の確認", "いまは準備中です。");
+    return;
+  }
+  mainContainer.innerHTML = STAFF_LOADING;
+  staffToken = loadStaffToken(safeStorage, { create: true });
+  if (!staffToken) {
+    showStaffMessage("運営の確認", STAFF_REASON_TEXT.storage);
+    return;
+  }
+  let st = null;
+  try {
+    st = await staffStatus(staffToken);
+  } catch (e) {
+    console.error(e);
+  }
+  if (currentRenderedRoute !== "staff") return;
+  if (!st) {
+    showStaffMessage("運営の確認", STAFF_REASON_TEXT.failed, { retry: true });
+    return;
+  }
+  if (st.staff) {
+    // 運営の端末は通知の試しの端末にもする（#notify で「承認待ち」の知らせを受け取れるように）
+    try { safeStorage?.setItem(PUSH_TEST_KEY, "1"); } catch { /* 使えない */ }
+    staffMeta = { number: st.number || "", getsNotice: Boolean(st.gets_notice) };
+    setStaffPill(st.pending);
+    await loadStaffQueue();
+    return;
+  }
+  setStaffPill(null);
+  await renderStaffPair();
+}
+
+/** 登録コードの画面（運営の端末でないとき）。本人が SQL Editor で toi_staff_pair を流すと、ひとりでに切り替わる */
+async function renderStaffPair() {
+  let r = null;
+  try {
+    r = await staffPairStart(staffToken);
+  } catch (e) {
+    console.error(e);
+  }
+  if (currentRenderedRoute !== "staff") return;
+  if (r?.staff) {
+    await renderStaff();
+    return;
+  }
+  if (!r?.ok || !r.code) {
+    showStaffMessage("運営の端末にする", STAFF_REASON_TEXT[r?.reason] ?? STAFF_REASON_TEXT.failed, { retry: true });
+    return;
+  }
+  const code = r.code;
+  const sql = pairSql(code);
+  mainContainer.innerHTML = `
+    <div class="inbox-container staff-container">
+      <div class="inbox-header">
+        <h1 id="staff-heading" class="inbox-h1" tabindex="-1">運営の端末にする</h1>
+        <p class="inbox-desc">ここは運営（たいど）の人だけが使う画面です。登録した端末で、承認待ちの問いと返事を確かめられます。</p>
+      </div>
+      <section class="inbox-card staff-pair" aria-labelledby="staff-pair-label">
+        <p class="staff-pair-label" id="staff-pair-label">この端末の登録コード（${escapeHtml(untilText(r.expires_at))}）</p>
+        <p class="staff-pair-code" aria-label="登録コード ${escapeHtml(code.split("").join(" "))}">${escapeHtml(formatPairCode(code))}</p>
+        <ol class="staff-steps">
+          <li>パソコンなどで Supabase のダッシュボードにログインし、SQL Editor を開く</li>
+          <li>次の1行を貼って「Run」
+            <pre class="staff-sql"><code>${escapeHtml(sql)}</code></pre>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-staff-copy">1行をコピー</button>
+          </li>
+          <li>この画面が、ひとりでに「承認待ち」に切り替わります</li>
+        </ol>
+        <p class="notify-text staff-pair-state" id="staff-pair-state" role="status">登録を待っています…</p>
+        <button type="button" class="btn btn-secondary btn-block" id="btn-staff-check">登録できたか確かめる</button>
+      </section>
+      <p class="notify-note">iPhone は、ホーム画面のアイコンから開いた画面で登録してください（Safari とは別の端末として扱われます）。</p>
+      <p class="notify-note">コードは10分で切れます。切れたら開き直すと、新しいコードが出ます。</p>
+    </div>
+  `;
+  document.getElementById("staff-heading")?.focus();
+
+  document.getElementById("btn-staff-copy")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    try {
+      await navigator.clipboard.writeText(sql);
+      btn.textContent = "コピーしました";
+    } catch {
+      btn.textContent = "長押しで選んでコピーしてください";
+    }
+  });
+
+  const expires = new Date(r.expires_at).getTime();
+  const stateEl = document.getElementById("staff-pair-state");
+  const checkBtn = document.getElementById("btn-staff-check");
+  const check = async ({ manual = false } = {}) => {
+    stopStaffPoll();
+    if (currentRenderedRoute !== "staff" || !stateEl?.isConnected) return;
+    if (Date.now() > expires) {
+      stateEl.textContent = "コードが切れました。";
+      if (checkBtn) checkBtn.textContent = "新しいコードを出す";
+      return;
+    }
+    let s = null;
+    try {
+      s = await staffStatus(staffToken);
+    } catch (err) {
+      console.error(err);
+    }
+    if (currentRenderedRoute !== "staff" || !stateEl.isConnected) return;
+    if (s?.staff) {
+      announce("この端末を運営の端末にしました。");
+      await renderStaff();
+      return;
+    }
+    if (manual) stateEl.textContent = "まだ登録されていません。SQL Editor で1行を流したか、確かめてください。";
+    staffPollTimer = setTimeout(() => check(), 4000);
+  };
+  checkBtn?.addEventListener("click", () => {
+    if (Date.now() > expires) renderStaff();
+    else check({ manual: true });
+  });
+  staffPollTimer = setTimeout(() => check(), 4000);
+}
+
+async function loadStaffQueue() {
+  mainContainer.innerHTML = STAFF_LOADING;
+  let q = null;
+  try {
+    q = await staffQueue(staffToken);
+  } catch (e) {
+    console.error(e);
+    if (String(e?.message || "").includes("not_staff")) {
+      setStaffPill(null);
+      await renderStaffPair();
+      return;
+    }
+  }
+  if (currentRenderedRoute !== "staff") return;
+  if (!q) {
+    showStaffMessage("承認待ち", STAFF_REASON_TEXT.failed, { retry: true });
+    return;
+  }
+  staffReview = createReview(q.items || []);
+  staffPending = Number(q.pending) || 0;
+  drawStaffCard();
+}
+
+function staffCardHtml(item) {
+  const chips = flagChips(item.flags);
+  const isAnswer = item.kind === "answer";
+  const sos = Array.isArray(item.flags) && item.flags.includes("sos");
+  return `
+    <article class="staff-card" aria-labelledby="staff-card-body">
+      <div class="staff-card-top">
+        <span class="staff-kind staff-kind--${isAnswer ? "answer" : "question"}">${isAnswer ? "返事" : "問い"}</span>
+        <span class="staff-meta">${escapeHtml(postedText(item.created_at))}・${escapeHtml(originText(item))}</span>
+      </div>
+      <ul class="staff-flags" aria-label="下読みの見立て">
+        ${chips.map(c => `<li class="staff-flag staff-flag--${c.tone}"${c.hint ? ` title="${escapeHtml(c.hint)}"` : ""}>${escapeHtml(c.label)}</li>`).join("")}
+      </ul>
+      ${isAnswer ? `
+        <div class="staff-target">
+          <p class="staff-target-label">この問いへの返事${item.question_approved ? "" : '<span class="staff-target-pending">問いはまだ確認中</span>'}</p>
+          <p class="staff-target-body">${escapeHtml(item.question_body)}</p>
+        </div>` : ""}
+      <p class="staff-body" id="staff-card-body">${escapeHtml(item.body)}</p>
+      <p class="staff-sub">${isAnswer
+        ? `立場：${escapeHtml(item.role_label || "立場なし")}${item.ai_assisted ? "・AI と一緒に考えた" : ""}`
+        : `ニックネーム：${escapeHtml(item.nickname || "なし（だれか）")}・ジャンル：${escapeHtml(item.theme_label || "なし")}`}</p>
+      ${sos ? `<p class="staff-note staff-note--sos">${escapeHtml(FLAG_INFO.sos.hint)}。</p>` : ""}
+      ${isAnswer && !item.question_approved ? `<p class="staff-note">載せても、問いが載るまではサイトに出ません。</p>` : ""}
+    </article>`;
+}
+
+function drawStaffCard({ focus = "heading" } = {}) {
+  const r = staffReview;
+  const item = currentItem(r);
+  setStaffPill(staffPending);
+  const left = remaining(r);
+  mainContainer.innerHTML = `
+    <div class="inbox-container staff-container">
+      <div class="inbox-header staff-header">
+        <h1 id="staff-heading" class="inbox-h1" tabindex="-1">承認待ち</h1>
+        <p class="inbox-desc">${staffPending > 0 ? `${staffPending} 件。古い順に1枚ずつ。載せるのは人です。` : "載せるのは人です。"}</p>
+      </div>
+
+      ${staffMeta.getsNotice ? "" : `<p class="notify-note staff-notice"><a href="./?pushtest#notify">この端末に「承認待ち」の知らせを届ける（7:30・19:30）→</a></p>`}
+
+      ${r.last ? `
+        <p class="staff-undo" role="status">載せないにしました。<button type="button" class="staff-link-btn" id="btn-staff-undo">取り消す</button></p>` : ""}
+
+      ${item ? `
+        ${staffCardHtml(item)}
+        <div class="staff-actions" role="group" aria-label="この${item.kind === "answer" ? "返事" : "問い"}をどうするか">
+          <button type="button" class="btn btn-primary staff-btn" data-staff-act="approve">載せる</button>
+          <button type="button" class="btn btn-secondary staff-btn" data-staff-act="hold">保留</button>
+          <button type="button" class="btn staff-btn staff-btn-reject" data-staff-act="reject">載せない</button>
+        </div>
+        <p class="staff-progress">この1枚を入れて、あと ${left} 件${r.held.length ? `（保留 ${r.held.length} 件）` : ""}</p>
+        <p class="notify-error" id="staff-out" role="alert"></p>
+      ` : r.held.length ? `
+        <div class="card staff-empty">
+          <p class="staff-empty-title">保留が ${r.held.length} 件あります</p>
+          <p class="notify-text">保留はそのまま残ります。次に開いたときも並びます。</p>
+          <button type="button" class="btn btn-primary btn-block" id="btn-staff-held">保留をもう一度見る</button>
+          <button type="button" class="btn btn-secondary btn-block" id="btn-staff-reload">読み込み直す</button>
+        </div>
+      ` : `
+        <div class="card staff-empty">
+          <p class="staff-empty-title">承認待ちはありません</p>
+          <button type="button" class="btn btn-secondary btn-block" id="btn-staff-reload">読み込み直す</button>
+        </div>
+      `}
+
+      <details class="staff-device">
+        <summary>この端末について</summary>
+        <p class="notify-text">運営の端末（番号 ${escapeHtml(staffMeta.number)}）。外すと、この端末では承認待ちを読めなくなります。</p>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-staff-leave">この端末を運営の端末から外す</button>
+      </details>
+    </div>
+  `;
+  const target = focus === "card" && item ? document.getElementById("staff-card-body") : document.getElementById("staff-heading");
+  if (target && !target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+  target?.focus();
+
+  mainContainer.querySelectorAll("[data-staff-act]").forEach(btn => {
+    btn.addEventListener("click", () => staffAct(btn.dataset.staffAct));
+  });
+  document.getElementById("btn-staff-undo")?.addEventListener("click", () => staffAct("restore"));
+  document.getElementById("btn-staff-held")?.addEventListener("click", () => {
+    staffReview = reviewHeld(staffReview);
+    drawStaffCard({ focus: "card" });
+  });
+  document.getElementById("btn-staff-reload")?.addEventListener("click", () => loadStaffQueue());
+  document.getElementById("btn-staff-leave")?.addEventListener("click", async () => {
+    if (!window.confirm("この端末を運営の端末から外しますか？")) return;
+    try {
+      await staffLeave(staffToken);
+    } catch (e) {
+      console.error(e);
+    }
+    forgetStaffToken(safeStorage);
+    setStaffPill(null);
+    announce("この端末を運営の端末から外しました。");
+    await renderStaff();
+  });
+}
+
+const STAFF_DONE_TEXT = { approve: "載せました。", hold: "保留にしました。", reject: "載せないにしました。", restore: "取り消しました。" };
+
+async function staffAct(action) {
+  const target = action === "restore" ? staffReview.last : currentItem(staffReview);
+  if (!target) return;
+  mainContainer.querySelectorAll("[data-staff-act], #btn-staff-undo").forEach(b => { b.disabled = true; });
+  try {
+    if (action !== "hold") {
+      // 保留は DB を変えない（そのまま残す）。ほかは運営の関数（staff_decide）だけが変える
+      const res = await staffDecide(staffToken, target.kind, target.id, action);
+      if (Number.isFinite(res?.pending)) staffPending = res.pending;
+    }
+    staffReview = advance(staffReview, action);
+    announce(STAFF_DONE_TEXT[action] ?? "");
+    drawStaffCard({ focus: "card" });
+  } catch (e) {
+    console.error(e);
+    if (String(e?.message || "").includes("not_staff")) {
+      setStaffPill(null);
+      await renderStaff();
+      return;
+    }
+    mainContainer.querySelectorAll("[data-staff-act], #btn-staff-undo").forEach(b => { b.disabled = false; });
+    const out = document.getElementById("staff-out");
+    if (out) out.textContent = "うまく送れませんでした。少し待ってから、もう一度押してください。";
+  }
+}
+
+/* ==========================================================================
    ルーター (Hash Routing)
    ========================================================================== */
 
@@ -2251,6 +2604,7 @@ async function handleRouting() {
 
   currentRenderedRoute = resolution.path;
   updateNavigation(rawHash || "home");
+  if (resolution.path !== "staff") stopStaffPoll();
 
   if (resolution.type === "route") {
     if (resolution.path === "home") {
@@ -2272,6 +2626,8 @@ async function handleRouting() {
     } else if (resolution.path === "today") {
       prefsDraft = null;
       await renderToday();
+    } else if (resolution.path === "staff") {
+      await renderStaff();
     } else if (resolution.path === "question") {
       await renderDetail(resolution.paramId);
     } else if (resolution.path === "about") {
@@ -2356,6 +2712,7 @@ async function boot() {
     history.replaceState(null, "", `${location.pathname}${location.search}#today`);
   }
   setupAppNav();
+  setupStaffPill();   // 待たない（運営の端末だけ、ヘッダーに「承認」が出る）
   await syncData();
   await handleRouting();
 }

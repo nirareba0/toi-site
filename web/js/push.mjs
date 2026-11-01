@@ -155,10 +155,13 @@ export const PUSH_TEXT = {
   published: "あなたの答えがサイトに載りました",
   reaction: "あなたの答えに反応が届きました",
   other_answer: "あなたが答えた問いに、ほかの返事が載りました",
+  // 運営の端末だけへ（supabase/staff-review.sql）。件数・本文は載せない
+  review: "承認待ちが届いています",
 };
-// 開く画面（返事は「自分への返事」、新しい問いは「みんなの問い」、今日の問いは「今日の問い」、自分の答えのことは「自分のノート」）
+// 開く画面（返事は「自分への返事」、新しい問いは「みんなの問い」、今日の問いは「今日の問い」、自分の答えのことは「自分のノート」、承認待ちは「運営の確認」）
 export const PUSH_OPEN = {
   reply: "#inbox", question: "#home", today: "#today", published: "#notes", reaction: "#notes", other_answer: "#notes",
+  review: "#staff",
 };
 export const PUSH_KINDS = Object.keys(PUSH_TEXT);
 

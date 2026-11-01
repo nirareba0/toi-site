@@ -155,7 +155,7 @@ test("新しい問いの知らせの切り替えと、やめる（保存の層�
 });
 
 test("通知の文: 種類だけ。知らない種類は「返事」。開く画面は返事 → #inbox、問い → #home", () => {
-  assert.deepEqual(PUSH_KINDS, ["reply", "question", "today", "published", "reaction", "other_answer"]);
+  assert.deepEqual(PUSH_KINDS, ["reply", "question", "today", "published", "reaction", "other_answer", "review"]);
   assert.deepEqual(noticeFor({ kind: "reply" }), { title: "なんでポスト", body: "あなたの問いに返事が届きました", tag: "nandepost-reply", open: "#inbox" });
   assert.deepEqual(noticeFor({ kind: "question" }), { title: "なんでポスト", body: "新しい問いが届きました", tag: "nandepost-question", open: "#home" });
   assert.deepEqual(noticeFor({ kind: "today" }), { title: "なんでポスト", body: "今日の問いが届きました", tag: "nandepost-today", open: "#today" });
@@ -198,6 +198,7 @@ test("sw.js が出す文と開く画面は push.mjs と同じ（service worker �
   assert.equal(shown.pop().opts.body, PUSH_TEXT.reply);
   assert.deepEqual(PUSH_OPEN, {
     reply: "#inbox", question: "#home", today: "#today", published: "#notes", reaction: "#notes", other_answer: "#notes",
+    review: "#staff",
   });
 });
 
