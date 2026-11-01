@@ -104,7 +104,7 @@ test('待ち始める前からある返事は知らせない。やめたら送�
   assert.deepEqual(await sent(), []);
 });
 
-test('ブラウザ（anon）からは: ID トークンが正しくないと待てない。表と送る関数には触れない。投函はこれまでどおり', async () => {
+test('ブラウザ（anon）からは: ID トークンが正しくないと待てない。表と送る関数には触れない。問いの投函はこれまでどおり、返事の直接の書き込みはできない', async () => {
   const q = await question();
   await rejects(anon('select watch_question($1, $2)', [q, 'bad']), 'line_login_failed');
   await rejects(anon('select watch_question($1, $2)', ['00000000-0000-0000-0000-000000000000', 'line-U5']), 'question_not_found');
@@ -114,7 +114,7 @@ test('ブラウザ（anon）からは: ID トークンが正しくないと待�
   await rejects(anon('select toi_line_send($1, $2)', ['U5', 'x']), 'permission denied');
   await rejects(anon('select toi_line_notify($1)', [q]), 'permission denied');
   await anon(`insert into questions (body) values ('匿名の投函')`);
-  await anon(`insert into answers (question_id, body) values ($1, '匿名の返事')`, [q]);
+  await rejects(anon(`insert into answers (question_id, body) values ($1, '匿名の返事')`, [q]), 'row-level security');   // 返事は関数経由だけ
 });
 
 test('1人が待てる問いは50まで', async () => {

@@ -70,8 +70,8 @@ create policy "read reactions" on reactions for select to anon, authenticated us
 -- 投函: 匿名で insert できるが、approved は必ず false で入る（列は client から送らせない: 下の view/関数経由）
 drop policy if exists "post a question" on questions;
 create policy "post a question" on questions for insert to anon, authenticated with check (approved = false and source = 'web');
+-- 返事はブラウザから直接 insert させない（立場の偽装・相談先の判定や回数の上限のすり抜けを防ぐ）。返事は app_answer() など関数経由だけ（app-standalone.sql）
 drop policy if exists "post an answer" on answers;
-create policy "post an answer" on answers   for insert to anon, authenticated with check (approved = false);
 drop policy if exists "react" on reactions;
 create policy "react" on reactions for insert to anon, authenticated with check (true);
 

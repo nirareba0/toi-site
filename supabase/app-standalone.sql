@@ -525,3 +525,7 @@ do $$ begin
   perform cron.schedule('toi-app-hourly', '0 * * * *', 'select public.toi_app_tick()');
 exception when others then raise notice '毎時の仕事を pg_cron に組めませんでした: %', sqlerrm;
 end $$;
+
+-- ---------------------------------------------------------------- 返事はブラウザから直接 insert させない
+-- schema.sql の「post an answer」は立場（role_id）を偽れて、相談先の判定と回数の上限をすり抜けられた。返事はここの関数（app_answer など）と LINE の関数経由だけにする
+drop policy if exists "post an answer" on answers;

@@ -200,9 +200,9 @@ test('ブラウザ（anon）から: 宛先は push service だけ・印は 32 �
     await rejects(anon(`select ${f}`), 'permission denied');
   }
   assert.equal((await anon('select push_public_key() as k'))[0].k, null);   // 鍵ができるまでは null
-  // 投函と返事の書き込みはこれまでどおり（引き金が anon の操作を止めない）
+  // 問いの投函はこれまでどおり（引き金が anon の操作を止めない）。返事の直接の書き込みは schema.sql で塞いだ（関数経由だけ）
   await anon(`insert into questions (body, client_hash) values ('匿名の投函', $1)`, [A]);
-  await anon(`insert into answers (question_id, body) values ((select id from questions where approved limit 1), '匿名の返事')`);
+  await rejects(anon(`insert into answers (question_id, body) values ((select id from questions where approved limit 1), '匿名の返事')`), 'row-level security');
   // 同じ宛先で入れ直すと置き換わる。消すと消える
   await subscribe(EP(9), A, false);
   await subscribe(EP(9), B, true);
