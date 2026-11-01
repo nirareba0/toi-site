@@ -51,10 +51,10 @@ import {
   formatHandoffCode, isHandoffCode
 } from "./push.mjs";
 
-// スマホへの通知（push.mjs）。試しのあいだは ?pushtest で開いた端末だけ（PUSH_PUBLIC）
+// スマホへの通知（push.mjs）。試しのあいだは ?pushtest で開いた端末と、ホーム画面のアイコンから開いたときだけ（PUSH_PUBLIC）
 let safeStorage = null;
 try { safeStorage = window.localStorage; } catch { /* 使えない */ }
-const pushOn = pushReady({ search: location.search, storage: safeStorage });
+const pushOn = pushReady({ search: location.search, storage: safeStorage, standalone: isStandalone(window) });
 // 試しの端末では、ホーム画面に置いたアイコンも ?pushtest つきで開くように manifest を差し替える
 document.querySelector('link[rel="manifest"]')?.setAttribute("href", manifestFor(pushOn));
 

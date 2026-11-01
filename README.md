@@ -82,7 +82,7 @@ node --test web/tests/          # ドメインロジックのテスト
 
 iPhone はホーム画面のアプリと Safari で保存場所が分かれる。Safari で出した問いは、Safari の `#notify` で出す8けたの番号（15分）をアプリで入れて引き継ぐ。
 
-**試しの旗**: `?pushtest` を付けて開いた端末にだけ、通知の操作（受付画面・自分への返事・フッターのリンク）が出る。旗の端末では manifest が `site-pushtest.webmanifest`（`start_url` が `./?pushtest`）に替わり、ホーム画面のアイコンからも旗つきで開く。
+**試しの旗**: `?pushtest` を付けて開いた端末と、ホーム画面のアイコンから開いたとき（iPhone のホーム画面のアプリには旗が運ばれないことがあるため・2026-11-01）にだけ、通知の操作（受付画面・自分への返事・フッターのリンク）が出る。旗の端末では manifest が `site-pushtest.webmanifest`（`start_url` が `./?pushtest`）に替わり、ホーム画面のアイコンからも旗つきで開く。
 みんなに出すときは `web/js/push.mjs` の `PUSH_PUBLIC` を `true` にする。ホーム画面に置くこと自体は旗に関係なくいつでもできる。
 
 ### 本番に出す手順（鍵も合言葉も人は扱わない）

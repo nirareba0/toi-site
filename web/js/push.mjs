@@ -13,10 +13,12 @@ export const PUSH_TEST_KEY = "toi.push_test";
 
 /**
  * 「通知」の操作を出してよい端末か。?pushtest で開いたら、この端末を覚える（読み込んだときに1回呼ぶ）
- * @param {{ search?: string, storage?: Storage|null, isPublic?: boolean }} opts
+ * ホーム画面のアイコンから開いたときも出す（iPhone のホーム画面のアプリは Safari と保存場所が別で、
+ * manifest の差し替えが効かないと旗が運ばれない。ホーム画面に置くこと自体が、使うと決めた印なので）
+ * @param {{ search?: string, storage?: Storage|null, isPublic?: boolean, standalone?: boolean }} opts
  */
-export function pushReady({ search = "", storage = null, isPublic = PUSH_PUBLIC } = {}) {
-  if (isPublic) return true;
+export function pushReady({ search = "", storage = null, isPublic = PUSH_PUBLIC, standalone = false } = {}) {
+  if (isPublic || standalone) return true;
   let flagged = false;
   try { flagged = new URLSearchParams(search).has(PUSH_TEST_PARAM); } catch { /* 読めない */ }
   try {

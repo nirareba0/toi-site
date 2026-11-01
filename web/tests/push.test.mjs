@@ -60,6 +60,7 @@ test("試しの旗: ?pushtest で開いた端末を覚え、ほかの端末に�
   assert.equal(pushReady({ search: "", storage: s }), true);           // 次からは ?pushtest なしでも
   assert.equal(pushReady({ search: "", storage: memoryStorage(), isPublic: true }), true);
   assert.equal(pushReady({ search: "?pushtest", storage: null }), true); // localStorage が使えなくても URL で
+  assert.equal(pushReady({ search: "", storage: memoryStorage(), standalone: true }), true); // ホーム画面のアイコンから開いたとき
   assert.equal(manifestFor(true), MANIFEST_PUSHTEST);
   assert.equal(manifestFor(false), MANIFEST);
   assert.equal(manifestFor(true, true), MANIFEST);
