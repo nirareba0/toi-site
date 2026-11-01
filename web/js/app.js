@@ -1822,6 +1822,12 @@ async function boot() {
   // LINE のトークやリッチメニューから ?view=notes などで来た → その画面へ
   const view = viewRequest();
   if (view) history.replaceState(null, "", `${location.pathname}#${view}`);
+  // ホーム画面のアイコンから開いて、まだ通知を聞いていない（許可も拒否もしていない）なら、通知の画面から始める。
+  // 入口がフッターや受付画面にしか無く、アイコンから開くと見つけにくいため
+  if (pushOn && isStandalone(window) && (!location.hash || location.hash === "#home")
+      && window.Notification?.permission === "default") {
+    history.replaceState(null, "", `${location.pathname}${location.search}#notify`);
+  }
   await syncData();
   await handleRouting();
 }
