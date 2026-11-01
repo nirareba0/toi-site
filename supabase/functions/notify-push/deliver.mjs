@@ -3,8 +3,10 @@
 // 声のログの notify-turn（C:\code\toi-voice の supabase/functions/notify-turn/deliver.mjs）を下敷きにした。
 // 送るのは { kind } だけ。名前・問いや返事の本文は送らない（ロック画面で人に見える）。中身は push service を通るとき暗号化される（RFC 8291）。
 
-// reply: 自分の問いに返事が載った／question: 新しい問いが載った（web/js/push.mjs の PUSH_KINDS と同じ）
-export const KINDS = ['reply', 'question'];
+// reply: 自分の問いに返事が載った／question: 新しい問いが載った（web-push.sql）
+// today: 今日の問いが届いた／published: 答えが載った／reaction: 載った答えに反応／other_answer: 答えた問いにほかの返事（app-standalone.sql）
+// web/js/push.mjs の PUSH_KINDS と同じ。ここに無い種類は「返事」として送ってしまうので、種類を足したら先にこの関数を置き直してから SQL を流す
+export const KINDS = ['reply', 'question', 'today', 'published', 'reaction', 'other_answer'];
 // 届かなかったら、1日で捨ててもらう（古い知らせは意味がない）
 export const TTL_SEC = 24 * 60 * 60;
 

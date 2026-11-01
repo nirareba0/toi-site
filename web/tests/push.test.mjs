@@ -155,9 +155,13 @@ test("新しい問いの知らせの切り替えと、やめる（保存の層�
 });
 
 test("通知の文: 種類だけ。知らない種類は「返事」。開く画面は返事 → #inbox、問い → #home", () => {
-  assert.deepEqual(PUSH_KINDS, ["reply", "question"]);
+  assert.deepEqual(PUSH_KINDS, ["reply", "question", "today", "published", "reaction", "other_answer"]);
   assert.deepEqual(noticeFor({ kind: "reply" }), { title: "なんでポスト", body: "あなたの問いに返事が届きました", tag: "nandepost-reply", open: "#inbox" });
   assert.deepEqual(noticeFor({ kind: "question" }), { title: "なんでポスト", body: "新しい問いが届きました", tag: "nandepost-question", open: "#home" });
+  assert.deepEqual(noticeFor({ kind: "today" }), { title: "なんでポスト", body: "今日の問いが届きました", tag: "nandepost-today", open: "#today" });
+  assert.deepEqual(noticeFor({ kind: "published" }), { title: "なんでポスト", body: "あなたの答えがサイトに載りました", tag: "nandepost-published", open: "#notes" });
+  // 本文・名前を持たない（種類の文だけ）
+  for (const k of PUSH_KINDS) assert.ok(!/[「」]/.test(PUSH_TEXT[k]), k);
   assert.equal(noticeFor({ kind: "nope" }).body, PUSH_TEXT.reply);
   assert.equal(noticeFor(null).body, PUSH_TEXT.reply);
   for (const r of ["#inbox", "#home"]) assert.equal(resolveRoute(r).type, "route");
@@ -192,7 +196,9 @@ test("sw.js が出す文と開く画面は push.mjs と同じ（service worker �
   listeners.push({ data: { json: () => { throw new Error("bad"); } }, waitUntil: (p) => { wait = p; } });
   await wait;
   assert.equal(shown.pop().opts.body, PUSH_TEXT.reply);
-  assert.deepEqual(PUSH_OPEN, { reply: "#inbox", question: "#home" });
+  assert.deepEqual(PUSH_OPEN, {
+    reply: "#inbox", question: "#home", today: "#today", published: "#notes", reaction: "#notes", other_answer: "#notes",
+  });
 });
 
 test("引き継ぎの番号: 8けた。全角や空白・ハイフンが混じっても数字だけにする", () => {

@@ -6,16 +6,22 @@
 // 手元置き: 画面のファイル（html・css・js・mjs・アイコン・manifest）だけ。いつも先に通信で新しい版を取り、つながらないときだけ手元のものを出す
 //   （サイトは毎日作り直すので、古い画面を先に出さない）。問いと返事（Supabase）・問いごとのページ（q/）は持たない。
 // 画面のファイルの置き場を大きく変えたら CACHE の版を上げる（古い置き場は activate で消える）。
-const CACHE = 'nandepost-shell-2026-10-31';
-const SHELL = ['./', 'index.html', 'style.css', 'js/app.js', 'js/api.js', 'js/core.mjs', 'js/line.js', 'js/push.mjs', 'js/config.js',
+const CACHE = 'nandepost-shell-2026-11-01';
+const SHELL = ['./', 'index.html', 'style.css', 'js/app.js', 'js/api.js', 'js/core.mjs', 'js/line.js', 'js/push.mjs', 'js/standalone.mjs', 'js/config.js',
   'site.webmanifest', 'assets/icon-192.png', 'assets/mark-cloud.png'];
 
 const PUSH_TITLE = 'なんでポスト';
 const PUSH_TEXT = {
   reply: 'あなたの問いに返事が届きました',
   question: '新しい問いが届きました',
+  today: '今日の問いが届きました',
+  published: 'あなたの答えがサイトに載りました',
+  reaction: 'あなたの答えに反応が届きました',
+  other_answer: 'あなたが答えた問いに、ほかの返事が載りました',
 };
-const PUSH_OPEN = { reply: '#inbox', question: '#home' };
+const PUSH_OPEN = {
+  reply: '#inbox', question: '#home', today: '#today', published: '#notes', reaction: '#notes', other_answer: '#notes',
+};
 const PUSH_KINDS = Object.keys(PUSH_TEXT);
 
 self.addEventListener('push', (event) => {

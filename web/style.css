@@ -1859,3 +1859,202 @@ body {
   margin-bottom: 8px;
   text-align: center;
 }
+
+/* ==========================================================================
+   アプリだけで答える（#today・答える欄・自分のノート。standalone.mjs）。?pushtest の端末だけに出る
+   ========================================================================== */
+
+.bottom-nav-inner--five .bottom-nav-label {
+  font-size: 0.625rem;
+  white-space: nowrap;
+}
+
+.home-today {
+  max-width: var(--max-width);
+  margin: 0 auto 16px;
+  padding: 16px;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-vivid-blue);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-paper);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.home-today-eyebrow,
+.today-when {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-vivid-blue);
+}
+
+.home-today-body {
+  font-family: var(--font-heading);
+  font-size: 1.0625rem;
+  font-weight: 800;
+  line-height: 1.5;
+  color: var(--color-body);
+}
+
+.today-sheet {
+  margin-bottom: 14px;
+}
+
+.today-question {
+  margin-bottom: 8px;
+}
+
+.today-links {
+  font-size: 0.875rem;
+}
+
+.today-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 18px;
+}
+
+.today-empty {
+  text-align: center;
+  padding: 28px 20px;
+  margin-bottom: 14px;
+}
+
+.answer-section {
+  margin: 0 0 14px;
+}
+
+.detail-answer {
+  margin-top: 28px;
+}
+
+.answer-form,
+.answer-done {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.answer-form .form-label {
+  margin-bottom: 0;
+}
+
+.answer-form .exact-helper-text {
+  font-size: 0.8125rem;
+}
+
+.answer-share-label {
+  margin-bottom: 0;
+}
+
+.answer-out:empty,
+.answer-share-out:empty {
+  display: none;
+}
+
+.answer-done-title {
+  font-family: var(--font-heading);
+  font-size: 1.0625rem;
+  font-weight: 800;
+  color: var(--color-success);
+}
+
+.answer-done-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sos-box {
+  padding: 14px 16px;
+  background-color: var(--color-pale-blue);
+  border: 2px solid var(--color-vivid-blue);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+.sos-lead {
+  font-weight: 700;
+}
+
+.sos-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sos-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sos-tel {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-body);
+  text-decoration: none;
+}
+
+.sos-num {
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: var(--color-vivid-blue);
+  letter-spacing: 0.02em;
+}
+
+.sos-when {
+  font-size: 0.8125rem;
+  color: var(--color-body-muted);
+  padding-left: 4px;
+}
+
+.prefs-box {
+  margin-bottom: 14px;
+}
+
+.prefs-summary {
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.prefs-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.prefs-body .notify-platforms {
+  margin-bottom: 0;
+}
+
+.prefs-label {
+  font-weight: 700;
+  font-size: 0.875rem;
+  margin-top: 6px;
+}

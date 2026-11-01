@@ -42,8 +42,19 @@ import {
   savePush,
   deletePush,
   makePushHandoff,
-  takePushHandoff
+  takePushHandoff,
+  appToday,
+  appDraw,
+  appSetPrefs,
+  appAnswer,
+  appShareNote,
+  appMyNotes,
+  appDeleteNote
 } from "./api.js";
+import {
+  checkAnswer, reasonText, SOS_CONTACTS, SOS_LEAD, SOS_TAIL, telHref, MAX_ANSWER_LENGTH,
+  FREQUENCIES, isFrequency, frequencyText, selectableThemes, toggleTheme, themesLabel, noteStatus, deliveredText
+} from "./standalone.mjs";
 import { lineReady, watchUrl, watchRequest, viewRequest, lineIdToken, lineIdTokenIfLoggedIn, lineBootstrap, FRIEND_URL } from "./line.js";
 import {
   pushReady, manifestFor, TUTORIAL, PLATFORMS, PLATFORM_LABELS, STATE_TEXT, HANDOFF_REASON_TEXT,
@@ -211,6 +222,7 @@ function renderHome(shouldFocusHeading = true) {
       : null;
 
   mainContainer.innerHTML = `
+    ${pushOn && state.isConfigured ? `<section id="home-today" class="home-today" aria-label="今日の問い" hidden></section>` : ""}
     <div class="home-desktop-grid">
       <!-- 左カラム: コンパクトヒーロー -->
       <section class="home-hero" aria-labelledby="home-heading">
@@ -346,6 +358,8 @@ function renderHome(shouldFocusHeading = true) {
     const h1 = document.getElementById("home-heading");
     if (h1) h1.focus();
   }
+
+  fillHomeToday();
 
   // スポットライト切り替え
   const cycleBtn = document.getElementById("btn-cycle-spotlight");
@@ -934,6 +948,11 @@ async function syncLineQuestions() {
  * 公式LINE「なんでポスト」に届いた問いへ、トークで答えたもの。LINE でログインした本人だけが読める
  */
 async function renderNotes() {
+  // アプリだけで答える端末（?pushtest）は、この端末のノート（と、LINE でログインしていれば LINE のノート）
+  if (pushOn && isConfigured()) {
+    await renderAppNotes();
+    return;
+  }
   if (!lineReady() || !isConfigured()) {
     mainContainer.innerHTML = `
       <div class="card p-lg text-center" style="max-width: 500px; margin: 2rem auto;">
@@ -1028,6 +1047,500 @@ async function renderNotes() {
       }
     });
   });
+}
+
+/* ==========================================================================
+   アプリだけで答える（standalone.mjs・supabase/app-standalone.sql）。試しのあいだは ?pushtest の端末だけ（pushOn）
+   LINE のトークでしていたこと（問いが届く・答える・ノートに残す・みんなに見せる）を、この端末だけでできるようにする
+   ========================================================================== */
+
+/** 相談先（何より先に出す。送っていないことも書く） */
+function sosHtml() {
+  return `
+    <div class="sos-box" role="alert" tabindex="-1">
+      <p class="sos-lead">${escapeHtml(SOS_LEAD)}</p>
+      <ul class="sos-list">
+        ${SOS_CONTACTS.map(c => `
+          <li><a class="sos-tel" href="${telHref(c.tel)}"><strong>${escapeHtml(c.name)}</strong>
+            <span class="sos-num">${escapeHtml(c.tel)}</span></a><span class="sos-when">${escapeHtml(c.when)}</span></li>`).join("")}
+      </ul>
+      <p class="sos-tail">${escapeHtml(SOS_TAIL)}</p>
+    </div>`;
+}
+
+/** 答える欄（今日の問い・問いのページ） */
+function answerFormHtml(questionId) {
+  return `
+    <form class="answer-form" data-question="${escapeHtml(questionId)}" novalidate>
+      <div class="answer-out" aria-live="polite"></div>
+      <label for="answer-body" class="form-label">あなたの答え</label>
+      <textarea id="answer-body" class="form-textarea" rows="5" maxlength="${MAX_ANSWER_LENGTH}"
+                placeholder="思ったことを、そのまま。まとまっていなくて大丈夫。"
+                aria-describedby="answer-helper"></textarea>
+      <p id="answer-helper" class="exact-helper-text">あなただけのノートに残ります。「みんなに見せる」を選ばないかぎり、だれにも見せません。</p>
+      <label class="checkbox-agree-label answer-share-label">
+        <input type="checkbox" class="checkbox-agree-input" name="share">
+        <span>みんなに見せる（スタッフが確かめてから、その問いの下に名前なしで「中高生」として載ります）</span>
+      </label>
+      <button type="submit" class="btn btn-primary btn-block">ノートに残す</button>
+    </form>`;
+}
+
+/**
+ * 答える欄を動かす。onNext があれば、残したあとに「次の問い」を出す
+ * @param {HTMLElement} root
+ * @param {{ onNext?: () => void }} [opts]
+ */
+function bindAnswerForm(root, { onNext } = {}) {
+  const form = root.querySelector(".answer-form");
+  if (!form) return;
+  const out = form.querySelector(".answer-out");
+  const textarea = form.querySelector("textarea");
+  const submit = form.querySelector("button[type=submit]");
+  // 相談先は、答える欄のいちばん上に出して、そこへ移る（何より先に目に入るように）
+  const showSos = () => {
+    out.innerHTML = sosHtml();
+    const box = out.querySelector(".sos-box");
+    box?.scrollIntoView({ block: "start", behavior: "smooth" });
+    box?.focus({ preventScroll: true });
+    announce("相談先を出しました。この答えは送っていません。");
+  };
+  const showReason = (reason) => {
+    out.innerHTML = `<p class="notify-error" role="alert">${escapeHtml(reasonText(reason))}</p>`;
+  };
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const share = form.querySelector("input[name=share]").checked;
+    const check = checkAnswer(textarea.value);
+    // 相談先が要る言葉は、送らずに、何より先に相談先を出す
+    if (!check.ok) {
+      if (check.reason === "sos") showSos(); else showReason(check.reason);
+      return;
+    }
+    submit.disabled = true;
+    out.innerHTML = "";
+    let r = null;
+    try {
+      r = await appAnswer(form.dataset.question, check.body, share);
+    } catch (err) {
+      console.error(err);
+    }
+    submit.disabled = false;
+    if (!r?.ok) {
+      if (r?.reason === "sos") showSos(); else showReason(r?.reason);
+      return;
+    }
+    const shared = share && r.share?.ok;
+    form.outerHTML = answerDoneHtml(r.note_id, { share, shared, shareReason: r.share?.reason, next: Boolean(onNext) });
+    const done = root.querySelector(".answer-done");
+    done?.querySelector("h3")?.focus();
+    announce(shared ? "ノートに残し、サイトに送りました。" : "ノートに残しました。");
+    bindAnswerDone(root, { onNext });
+  });
+}
+
+function answerDoneHtml(noteId, { share, shared, shareReason, next }) {
+  return `
+    <div class="answer-done paper-settle-animation">
+      <h3 class="answer-done-title" tabindex="-1">ノートに残しました</h3>
+      ${shared ? `<p class="notify-text">サイトに送りました。スタッフが確かめてから、その問いの下に「中高生」として載ります（名前は出ません）。${pushOn ? "載ったら、通知を受け取っている端末に知らせます。" : ""}</p>`
+        : share ? `<p class="notify-error" role="alert">サイトには送れませんでした。${escapeHtml(reasonText(shareReason))}</p>`
+        : `<p class="notify-text">ほかの人にも読んでほしくなったら「みんなに見せる」を押してね（スタッフが確かめてから、サイトに名前なしで載ります）。</p>`}
+      <div class="answer-done-actions">
+        ${shared ? "" : `<button type="button" class="btn btn-outline btn-sm btn-share-note" data-id="${escapeHtml(noteId)}">みんなに見せる</button>`}
+        ${next ? `<button type="button" class="btn btn-secondary btn-sm btn-next-question">次の問い</button>` : ""}
+        <a href="#notes" class="btn btn-secondary btn-sm">ノートを見る</a>
+      </div>
+      <p class="answer-share-out notify-text" aria-live="polite"></p>
+    </div>`;
+}
+
+function bindAnswerDone(root, { onNext } = {}) {
+  root.querySelector(".btn-next-question")?.addEventListener("click", () => onNext?.());
+  bindShareButtons(root);
+}
+
+/** 「みんなに見せる」ボタン（答えたあと・ノート）。2回押しで確かめる */
+function bindShareButtons(root) {
+  root.querySelectorAll(".btn-share-note").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (btn.dataset.armed !== "1") {
+        btn.dataset.armed = "1";
+        btn.textContent = "もう一度押すとサイトに送ります";
+        return;
+      }
+      btn.disabled = true;
+      const out = btn.closest(".answer-done, article")?.querySelector(".answer-share-out");
+      let r = null;
+      try {
+        r = await appShareNote(btn.dataset.id);
+      } catch (e) {
+        console.error(e);
+      }
+      if (r?.ok) {
+        btn.remove();
+        if (out) out.textContent = "サイトに送りました。スタッフが確かめてから、名前なしで「中高生」として載ります。";
+        announce("サイトに送りました。");
+      } else {
+        btn.disabled = false;
+        btn.dataset.armed = "";
+        btn.textContent = "みんなに見せる";
+        if (out) out.textContent = reasonText(r?.reason);
+      }
+    });
+  });
+}
+
+// 頻度とジャンルを選んでいる途中の値（画面を描き直しても残す）
+let prefsDraft = null;
+
+function prefsHtml(prefs, { open }) {
+  const draft = prefsDraft ?? { frequency: isFrequency(prefs.frequency) && prefs.chosen ? prefs.frequency : "daily", themes: prefs.themes ?? [] };
+  prefsDraft = draft;
+  const themes = selectableThemes(state.themes);
+  const body = `
+    <div class="prefs-body">
+      <p class="prefs-label" id="prefs-freq-label">問いが届く頻度</p>
+      <div class="notify-platforms" role="group" aria-labelledby="prefs-freq-label">
+        ${FREQUENCIES.map(f => `<button type="button" class="chip-btn ${draft.frequency === f.id ? "active" : ""}" data-freq="${f.id}" aria-pressed="${draft.frequency === f.id}">${f.label}</button>`).join("")}
+      </div>
+      <p class="notify-text prefs-freq-text">${escapeHtml(frequencyText(draft.frequency))}</p>
+      <p class="prefs-label" id="prefs-genre-label">考えたい問いのジャンル（いくつでも。選ばなければぜんぶ）</p>
+      <div class="notify-platforms" role="group" aria-labelledby="prefs-genre-label">
+        ${themes.map(t => `<button type="button" class="chip-btn ${draft.themes.includes(t.id) ? "active" : ""}" data-genre="${escapeHtml(t.id)}" aria-pressed="${draft.themes.includes(t.id)}">${escapeHtml(t.label)}</button>`).join("")}
+      </div>
+      <p class="notify-text">いま：${escapeHtml(themesLabel(state.themes, draft.themes))}</p>
+      <button type="button" class="btn btn-primary btn-block" id="btn-prefs-save">これで決める</button>
+      <p class="notify-error" id="prefs-out" role="alert"></p>
+    </div>`;
+  if (!prefs.chosen) {
+    return `
+      <section class="inbox-card notify-box prefs-box" aria-labelledby="prefs-title">
+        <h2 id="prefs-title" class="notify-step-title">はじめに、届き方を選んでね</h2>
+        <p class="notify-text">あとでいつでも変えられます。</p>
+        ${body}
+      </section>`;
+  }
+  return `
+    <details class="inbox-card prefs-box" ${open ? "open" : ""}>
+      <summary class="prefs-summary">届く頻度とジャンル：${escapeHtml(FREQUENCIES.find(f => f.id === prefs.frequency)?.label ?? "")}・${escapeHtml(themesLabel(state.themes, prefs.themes))}</summary>
+      ${body}
+    </details>`;
+}
+
+/**
+ * 今日の問い (#today)
+ * LINE で問いが届くのと同じ。毎日／週1の端末には、決まった時刻に1つ届く。自分で引くこともできる
+ */
+async function renderToday({ data = null, prefsOpen = false, message = "" } = {}) {
+  if (!pushOn || !isConfigured()) {
+    mainContainer.innerHTML = `
+      <div class="inbox-container"><div class="card p-lg text-center">
+        <h1 id="today-heading" tabindex="-1" class="inbox-h1">今日の問い</h1>
+        <p>いまは準備中です。</p>
+        <div style="margin-top: 1rem;"><a href="#home" class="btn btn-primary">みんなの問いへ</a></div>
+      </div></div>
+    `;
+    document.getElementById("today-heading")?.focus();
+    return;
+  }
+  if (!data) {
+    mainContainer.innerHTML = `<div class="inbox-container"><div class="card p-lg text-center"><p style="color: var(--color-body-muted);">読み込み中...</p></div></div>`;
+    try {
+      data = await appToday();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+  if (!data?.prefs) {
+    mainContainer.innerHTML = `
+      <div class="inbox-container"><div class="card p-lg text-center">
+        <h1 id="today-heading" tabindex="-1" class="inbox-h1">今日の問い</h1>
+        <p>${escapeHtml(REASON_FAILED)}</p>
+        <div style="margin-top: 1rem;"><a href="#home" class="btn btn-primary">みんなの問いへ</a></div>
+      </div></div>
+    `;
+    document.getElementById("today-heading")?.focus();
+    return;
+  }
+  const { prefs, question } = data;
+  const wantsPush = (prefs.frequency === "daily" || prefs.frequency === "weekly")
+    && !(window.Notification && window.Notification.permission === "granted");
+
+  mainContainer.innerHTML = `
+    <div class="inbox-container today-container">
+      <div class="inbox-header">
+        <h1 id="today-heading" class="inbox-h1" tabindex="-1">今日の問い</h1>
+        <p class="inbox-desc">届いた問いに、思ったことを書いてみて。あなただけのノートに残ります。</p>
+      </div>
+
+      ${prefs.chosen ? "" : prefsHtml(prefs, { open: true })}
+
+      ${message ? `<p class="notify-error" role="alert">${escapeHtml(message)}</p>` : ""}
+
+      ${question ? `
+        <article class="question-sheet today-sheet" aria-labelledby="today-question">
+          <div class="question-sheet-top">
+            <span class="badge badge-topic">${escapeHtml(question.theme_label || "未分類")}</span>
+            ${question.answered ? '<span class="badge badge-status-answered">答えた問い</span>' : ""}
+          </div>
+          <p class="today-when">${escapeHtml(deliveredText(question))}</p>
+          <h2 id="today-question" class="question-sheet-h1 today-question">${escapeHtml(question.body)}</h2>
+          <p class="today-links"><a href="#question/${escapeHtml(question.id)}">この問いへの大人の返事を読む →</a></p>
+        </article>
+        <section class="answer-section" aria-label="この問いに答える">
+          ${question.answered ? `<p class="notify-text">この問いには、もう答えています。思ったことが増えたら、もう一度書けます。</p>` : ""}
+          ${answerFormHtml(question.id)}
+        </section>
+        <div class="today-actions">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-draw">別の問いを引く</button>
+          <a href="#notes" class="btn btn-secondary btn-sm">自分のノート</a>
+        </div>
+      ` : `
+        <div class="card today-empty">
+          <p style="font-weight: 600; margin-bottom: 8px;">${prefs.chosen ? "いま届いている問いはありません" : "選ぶと、さっそく1つ届きます"}</p>
+          ${prefs.chosen ? `<button type="button" class="btn btn-primary" id="btn-draw">問いを引く</button>` : ""}
+        </div>
+      `}
+
+      ${prefs.chosen ? prefsHtml(prefs, { open: prefsOpen }) : ""}
+
+      ${wantsPush ? `<p class="notify-note"><a href="#notify">問いが届いたら、スマホに知らせてもらう →</a></p>` : ""}
+      <p class="notify-note">答えは、あなたが「みんなに見せる」を選ばないかぎり、だれにも見せません。ここは人が読んでいる場所ではないので、つらいときはページのいちばん下の相談窓口へ。</p>
+    </div>
+  `;
+  document.getElementById("today-heading")?.focus();
+
+  bindAnswerForm(mainContainer, { onNext: () => drawToday() });
+
+  document.getElementById("btn-draw")?.addEventListener("click", () => drawToday());
+
+  mainContainer.querySelectorAll("[data-freq]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      prefsDraft = { ...prefsDraft, frequency: btn.dataset.freq };
+      renderToday({ data, prefsOpen: true });
+      document.querySelector(`[data-freq="${btn.dataset.freq}"]`)?.focus();
+    });
+  });
+  mainContainer.querySelectorAll("[data-genre]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      prefsDraft = { ...prefsDraft, themes: toggleTheme(prefsDraft.themes, btn.dataset.genre) };
+      renderToday({ data, prefsOpen: true });
+      document.querySelector(`[data-genre="${btn.dataset.genre}"]`)?.focus();
+    });
+  });
+  document.getElementById("btn-prefs-save")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try {
+      const next = await appSetPrefs(prefsDraft.frequency, prefsDraft.themes);
+      prefsDraft = null;
+      await renderToday({ data: next });
+      announce(`届き方を決めました。${frequencyText(next.prefs.frequency)}`);
+    } catch (err) {
+      console.error(err);
+      btn.disabled = false;
+      const out = document.getElementById("prefs-out");
+      if (out) out.textContent = REASON_FAILED;
+    }
+  });
+}
+
+const REASON_FAILED = reasonText("failed");
+
+async function drawToday() {
+  let next = null;
+  try {
+    next = await appDraw();
+  } catch (e) {
+    console.error(e);
+  }
+  if (!next?.prefs) {
+    await renderToday({ message: REASON_FAILED });
+    return;
+  }
+  await renderToday({ data: next, message: next.ok ? "" : reasonText(next.reason) });
+  if (next.ok) announce("問いを1つ引きました。");
+}
+
+/** ホームのいちばん上の「今日の問い」（アプリを開くと届いている問い） */
+async function fillHomeToday() {
+  const box = document.getElementById("home-today");
+  if (!box) return;
+  let data = null;
+  try {
+    data = await appToday();
+  } catch (e) {
+    console.error(e);
+    return;
+  }
+  if (!box.isConnected || !data?.prefs) return;
+  const q = data.question;
+  box.innerHTML = q ? `
+    <p class="home-today-eyebrow">今日の問い${q.answered ? "（答えた）" : ""}</p>
+    <p class="home-today-body">${escapeHtml(q.body)}</p>
+    <a href="#today" class="btn btn-primary btn-sm">${q.answered ? "もう一度書く・別の問い" : "答える"}</a>
+  ` : `
+    <p class="home-today-eyebrow">今日の問い</p>
+    <p class="home-today-body">${data.prefs.chosen ? "問いを1つ引いて、答えてみる？" : "問いが届くようにしてみる？ 毎日・週1・自分で引く、から選べます。"}</p>
+    <a href="#today" class="btn btn-primary btn-sm">${data.prefs.chosen ? "問いを引く" : "届き方を選ぶ"}</a>
+  `;
+  box.hidden = false;
+}
+
+/** 自分のノート（この端末で答えたもの）。LINE でログインしていれば、LINE で答えたノートも下に出す */
+async function renderAppNotes() {
+  mainContainer.innerHTML = `<div class="inbox-container"><div class="card p-lg text-center"><p style="color: var(--color-body-muted);">読み込み中...</p></div></div>`;
+  let notes = null;
+  try {
+    notes = await appMyNotes();
+  } catch (e) {
+    console.error(e);
+  }
+  const lineToken = lineReady() ? await lineIdTokenIfLoggedIn() : null;
+  let lineNotes = null;
+  if (lineToken) {
+    try {
+      lineNotes = await myLineNotes(lineToken);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  mainContainer.innerHTML = `
+    <div class="inbox-container">
+      <div class="inbox-header">
+        <h1 id="notes-heading" class="inbox-h1" tabindex="-1">自分のノート</h1>
+        <p class="inbox-desc">この端末で問いに答えたことが残ります。読めるのはあなただけです（「みんなに見せる」を選んだものは、スタッフが確かめてからサイトに載ります）。</p>
+      </div>
+      <div class="inbox-list">
+        ${notes === null ? `
+          <div class="card" style="text-align: center; padding: 36px 20px;">
+            <p style="font-weight: 600; margin-bottom: 8px;">ノートを読めませんでした</p>
+            <p style="font-size: 0.875rem; color: var(--color-body-muted);">少し待ってから、もう一度開いてください。</p>
+          </div>
+        ` : notes.length === 0 ? `
+          <div class="card" style="text-align: center; padding: 36px 20px;">
+            <p style="font-weight: 600; margin-bottom: 8px;">まだノートがありません</p>
+            <p style="font-size: 0.875rem; color: var(--color-body-muted); margin-bottom: 20px;">今日の問いや、みんなの問いのページで「答える」と、ここに残ります。</p>
+            <a href="#today" class="btn btn-primary">今日の問いへ</a>
+          </div>
+        ` : notes.map(n => noteCardHtml(n, { app: true })).join("")}
+      </div>
+      ${lineReady() ? `
+        <div class="inbox-header" style="margin-top: 28px;">
+          <h2 class="notify-step-title">LINE で答えたノート</h2>
+          ${lineToken ? "" : `<button type="button" class="btn btn-line btn-sm" id="btn-line-notes">LINE で答えたノートも見る</button>`}
+        </div>
+        ${lineToken ? `<div class="inbox-list">${lineNotes === null ? `<p class="notify-text">LINE で確かめられませんでした。</p>`
+          : lineNotes.length === 0 ? `<p class="notify-text">LINE で答えたノートはまだありません。</p>`
+          : lineNotes.map(n => noteCardHtml(n, { app: false })).join("")}</div>` : ""}
+      ` : ""}
+    </div>
+  `;
+  document.getElementById("notes-heading")?.focus();
+
+  document.getElementById("btn-line-notes")?.addEventListener("click", async (e) => {
+    e.currentTarget.disabled = true;
+    try {
+      await lineIdToken();   // ログインしていなければ LINE のログイン画面へ移り、ここに戻ってくる
+      await renderAppNotes();
+    } catch (err) {
+      console.error(err);
+      e.currentTarget.disabled = false;
+    }
+  });
+  bindShareButtons(mainContainer);
+  bindDeleteNoteButtons(mainContainer, async (btn) => {
+    if (btn.dataset.kind === "line") return deleteLineNote(lineToken, btn.dataset.id);
+    return appDeleteNote(btn.dataset.id);
+  });
+}
+
+const noteDate = (iso) => {
+  try {
+    return new Date(iso).toLocaleDateString("ja-JP", { month: "long", day: "numeric" });
+  } catch {
+    return "";
+  }
+};
+
+function noteCardHtml(n, { app }) {
+  const st = noteStatus(n);
+  return `
+    <article class="inbox-card">
+      <div class="inbox-card-top">
+        <div>
+          <span class="badge badge-topic">${escapeHtml(noteDate(n.created_at))}</span>
+          ${st.key === "published" ? `<span class="badge badge-status-answered" style="margin-left: 4px;">${st.label}</span>`
+            : st.key === "shared" ? `<span class="badge badge-status-pending" style="margin-left: 4px;">${st.label}</span>` : ""}
+        </div>
+      </div>
+      ${n.question_body ? `
+        <p class="inbox-status-explain">${n.question_id ? `<a href="#question/${escapeHtml(n.question_id)}">「${escapeHtml(n.question_body)}」</a>` : `「${escapeHtml(n.question_body)}」`}</p>
+      ` : ""}
+      <div class="inbox-body-text" style="white-space: pre-wrap;">${escapeHtml(n.body)}</div>
+      <div class="inbox-card-actions">
+        ${app && st.key === "private" && n.question_body ? `<button type="button" class="btn btn-outline btn-sm btn-share-note" data-id="${escapeHtml(n.id)}">みんなに見せる</button>` : ""}
+        <button type="button" class="btn btn-outline btn-sm btn-delete-note" data-id="${escapeHtml(n.id)}" data-kind="${app ? "app" : "line"}">消す</button>
+      </div>
+      <p class="answer-share-out notify-text" aria-live="polite"></p>
+    </article>`;
+}
+
+/** 「消す」ボタン（2回押し。LINE の中ではブラウザのダイアログで止まりやすいので使わない） */
+function bindDeleteNoteButtons(root, remove) {
+  root.querySelectorAll(".btn-delete-note").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      if (btn.dataset.armed !== "1") {
+        btn.dataset.armed = "1";
+        btn.textContent = "もう一度押すと消えます";
+        return;
+      }
+      btn.disabled = true;
+      try {
+        await remove(btn);
+        btn.closest("article")?.remove();
+        announce("ノートを消しました。");
+      } catch (e) {
+        console.error(e);
+        btn.disabled = false;
+        btn.textContent = "消せませんでした。もう一度";
+      }
+    });
+  });
+}
+
+/** 下のナビ（スマホ）と上のナビに「今日の問い」「ノート」を足す（旗の端末だけ。旗のない人の見た目は今のまま） */
+function setupAppNav() {
+  if (!pushOn) return;
+  const bottom = document.querySelector(".bottom-nav-inner");
+  if (bottom && !bottom.querySelector('[data-bottom-route="today"]')) {
+    const item = (route, label, svg) => {
+      const a = document.createElement("a");
+      a.href = `#${route}`;
+      a.className = "bottom-nav-item";
+      a.setAttribute("data-bottom-route", route);
+      a.innerHTML = `<svg class="bottom-nav-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${svg}</svg><span class="bottom-nav-label">${label}</span>`;
+      return a;
+    };
+    bottom.prepend(item("today", "今日の問い", '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path>'));
+    bottom.insertBefore(item("notes", "ノート", '<path d="M4 4h12l4 4v12H4z"></path><path d="M8 12h8M8 16h5"></path>'),
+      bottom.querySelector('[data-bottom-route="inbox"]'));
+    bottom.classList.add("bottom-nav-inner--five");
+  }
+  const desktop = document.querySelector(".desktop-nav-list");
+  if (desktop && !desktop.querySelector('[data-route="today"]')) {
+    const li = (route, label) => {
+      const el = document.createElement("li");
+      el.innerHTML = `<a href="#${route}" class="desktop-nav-link" data-route="${route}">${label}</a>`;
+      return el;
+    };
+    desktop.prepend(li("today", "今日の問い"));
+    const inbox = desktop.querySelector('[data-route="inbox"]')?.closest("li");
+    desktop.insertBefore(li("notes", "ノート"), inbox ?? null);
+  }
 }
 
 /**
@@ -1128,7 +1641,7 @@ async function renderDetail(questionId) {
                   </div>
                 </div>
                 <div class="reply-body">${escapeHtml(reply.body)}</div>
-                ${lineReady() ? `
+                ${lineReady() || pushOn ? `
                 <div class="reply-reactions" role="group" aria-label="この返事への反応">
                   ${REACTIONS.map(r => `<button type="button" class="btn btn-outline btn-sm btn-react" data-answer="${escapeHtml(reply.id)}" data-kind="${r.kind}" aria-pressed="${reacted(reply.id, r.kind)}">${r.label}</button>`).join("")}
                 </div>` : ""}
@@ -1137,11 +1650,19 @@ async function renderDetail(questionId) {
           </div>
         `}
       </section>
+
+      ${pushOn ? `
+      <section class="answer-section detail-answer" aria-labelledby="answer-title">
+        <h2 id="answer-title" class="replies-title">この問いに答える</h2>
+        ${answerFormHtml(question.id)}
+      </section>` : ""}
     </div>
   `;
 
   const h1 = document.getElementById("question-detail-title");
   if (h1) h1.focus();
+
+  bindAnswerForm(mainContainer);
 
   document.querySelectorAll(".btn-react").forEach(btn => {
     btn.addEventListener("click", async () => {
@@ -1555,7 +2076,7 @@ async function renderNotify() {
     <div class="inbox-container">
       <div class="inbox-header">
         <h1 id="notify-heading" class="inbox-h1" tabindex="-1">スマホに知らせてもらう</h1>
-        <p class="inbox-desc">ホーム画面に「なんでポスト」を置くと、あなたの問いに返事が届いたときと、新しい問いが届いたときに、スマホに知らせます。
+        <p class="inbox-desc">ホーム画面に「なんでポスト」を置くと、あなたの問いに返事が届いたとき、問いが届いたとき、あなたの答えがサイトに載ったときに、スマホに知らせます。
           通知に問いの中身や名前は出ません。名前やメールアドレスを入れる必要もありません。</p>
       </div>
 
@@ -1582,7 +2103,7 @@ async function renderNotify() {
         ${st === "off" || st === "on" ? `
           <label class="checkbox-agree-label">
             <input type="checkbox" class="checkbox-agree-input" id="notify-questions" ${wantQuestions ? "checked" : ""}>
-            新しい問いが届いたときも知らせる（1日1回まで・夜7時ごろ）
+            問いが届いたときも知らせる（新しい問い・今日の問い。1日1回まで・夜7時ごろ）
           </label>` : ""}
         ${st === "off" ? `<button type="button" class="btn btn-primary btn-block" id="btn-push-on">通知を受け取る</button>` : ""}
         ${st === "on" ? `<button type="button" class="btn btn-outline btn-sm" id="btn-push-off">通知をやめる</button>` : ""}
@@ -1748,6 +2269,9 @@ async function handleRouting() {
       await renderNotes();
     } else if (resolution.path === "notify") {
       await renderNotify();
+    } else if (resolution.path === "today") {
+      prefsDraft = null;
+      await renderToday();
     } else if (resolution.path === "question") {
       await renderDetail(resolution.paramId);
     } else if (resolution.path === "about") {
@@ -1827,7 +2351,11 @@ async function boot() {
   if (pushOn && isStandalone(window) && (!location.hash || location.hash === "#home")
       && window.Notification?.permission === "default") {
     history.replaceState(null, "", `${location.pathname}${location.search}#notify`);
+  } else if (pushOn && isStandalone(window) && !location.hash) {
+    // 通知を聞き終えた（許可・拒否した／聞けない）端末は、ホーム画面のアイコンから開くと「今日の問い」から始める（LINE で問いが届くのと同じ入口）
+    history.replaceState(null, "", `${location.pathname}${location.search}#today`);
   }
+  setupAppNav();
   await syncData();
   await handleRouting();
 }

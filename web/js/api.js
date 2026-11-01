@@ -283,6 +283,48 @@ export async function deleteLineNote(idToken, noteId) {
   return lineRpc("line_delete_note", { p_id_token: idToken, p_note_id: noteId });
 }
 
+// ---- アプリだけで答える（supabase/app-standalone.sql）。端末は投函と同じ client_hash（名前・メール・LINE の ID は送らない） ----
+// どれも断るときは { ok: false, reason } を返す（standalone.mjs の REASON_TEXT）
+
+/** 今日の問いと設定。{ ok, prefs: { frequency, themes, chosen }, question: { id, body, theme_id, theme_label, via, delivered_at, answered } | null } */
+export async function appToday() {
+  return pushRpc("app_today", { p_client_hash: await clientHash() });
+}
+
+/** 問いを引く（別の問い）。返す形は appToday と同じ。無ければ reason: "none" */
+export async function appDraw() {
+  return pushRpc("app_draw", { p_client_hash: await clientHash() });
+}
+
+/** 届く頻度（daily / weekly / pull）とジャンル（themes の id。空は「ぜんぶ」）を決める。返す形は appToday と同じ */
+export async function appSetPrefs(frequency, themes) {
+  return pushRpc("app_set_prefs", {
+    p_client_hash: await clientHash(), p_frequency: frequency, p_themes: themes && themes.length ? themes : null
+  });
+}
+
+/** 答える → この端末だけのノート。share なら「みんなに見せる」（未承認の返事）にもする。{ ok, note_id, share } */
+export async function appAnswer(questionId, body, share = false) {
+  return pushRpc("app_answer", {
+    p_client_hash: await clientHash(), p_question_id: questionId, p_body: body, p_share: Boolean(share)
+  });
+}
+
+/** ノートを「みんなに見せる」にする。{ ok, already? } */
+export async function appShareNote(noteId) {
+  return pushRpc("app_share_note", { p_client_hash: await clientHash(), p_note_id: noteId });
+}
+
+/** この端末のノート。{ id, body, created_at, question_id, question_body, shared, published }[] */
+export async function appMyNotes() {
+  return (await pushRpc("app_my_notes", { p_client_hash: await clientHash() })) || [];
+}
+
+/** ノートを1つ消す（サイトに送った返事は残る） */
+export async function appDeleteNote(noteId) {
+  return pushRpc("app_delete_note", { p_client_hash: await clientHash(), p_note_id: noteId });
+}
+
 export async function postQuestion({ id, body, nickname = "", theme_id = null }) {
   if (!sb) {
     throw new Error("Supabase の接続設定が未完了です。config.js を設定してください。");

@@ -150,9 +150,16 @@ export const PUSH_TITLE = "なんでポスト";
 export const PUSH_TEXT = {
   reply: "あなたの問いに返事が届きました",
   question: "新しい問いが届きました",
+  // ここから下はアプリだけで答える人へ（supabase/app-standalone.sql）
+  today: "今日の問いが届きました",
+  published: "あなたの答えがサイトに載りました",
+  reaction: "あなたの答えに反応が届きました",
+  other_answer: "あなたが答えた問いに、ほかの返事が載りました",
 };
-// 開く画面（返事は「自分への返事」、新しい問いは「みんなの問い」）
-export const PUSH_OPEN = { reply: "#inbox", question: "#home" };
+// 開く画面（返事は「自分への返事」、新しい問いは「みんなの問い」、今日の問いは「今日の問い」、自分の答えのことは「自分のノート」）
+export const PUSH_OPEN = {
+  reply: "#inbox", question: "#home", today: "#today", published: "#notes", reaction: "#notes", other_answer: "#notes",
+};
 export const PUSH_KINDS = Object.keys(PUSH_TEXT);
 
 // 届いた中身から、出す文と開く画面を決める（sw.js と同じ決まり。知らない種類は「返事」として扱う）
