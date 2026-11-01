@@ -92,3 +92,41 @@ export function deliveredText(question, now = new Date()) {
     : `${at.getMonth() + 1}月${at.getDate()}日`;
   return question.via === "daily" ? `${when}に届いた問い` : `${when}に引いた問い`;
 }
+
+// 書き出してから答える（2026-11-01 本人「ジャーナリングしてから書くことをおすすめしたい。30分以内に書けたもので回答にしよう」）
+// 「はじめる」を押してから30分のあいだに書けたものを答えにする。書き出しはこの端末だけに置き、どこにも送らない。
+// 時間は画面の決まり（DB では確かめない）。読み込み直しても続きから書けるよう、問いごとに localStorage に置き、残したら消す
+export const ANSWER_MINUTES = 30;
+const DRAFT_PREFIX = "toi.answerDraft.";
+
+/** 残り時間。startedAt が無ければ始まっていない */
+export function answerClock(startedAt, now = Date.now(), minutes = ANSWER_MINUTES) {
+  if (!Number.isFinite(startedAt)) return { started: false, leftMs: minutes * 60000, expired: false };
+  const leftMs = Math.max(0, startedAt + minutes * 60000 - now);
+  return { started: true, leftMs, expired: leftMs === 0 };
+}
+
+/** 29:05 の形（切り上げ。0 になるまで 0:00 を出さない） */
+export function clockText(leftMs) {
+  const sec = Math.max(0, Math.ceil(leftMs / 1000));
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+}
+
+/** 問いごとの下書き（始めた時刻・書き出し・答え）。壊れていたら無いものとする */
+export function loadDraft(storage, questionId) {
+  try {
+    const d = JSON.parse(storage?.getItem(DRAFT_PREFIX + questionId) ?? "null");
+    if (!d || !Number.isFinite(d.startedAt)) return null;
+    return { startedAt: d.startedAt, journal: String(d.journal ?? ""), answer: String(d.answer ?? "") };
+  } catch {
+    return null;
+  }
+}
+
+export function saveDraft(storage, questionId, draft) {
+  try { storage?.setItem(DRAFT_PREFIX + questionId, JSON.stringify(draft)); } catch { /* 使えない */ }
+}
+
+export function clearDraft(storage, questionId) {
+  try { storage?.removeItem(DRAFT_PREFIX + questionId); } catch { /* 使えない */ }
+}

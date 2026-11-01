@@ -1955,6 +1955,77 @@ body {
   margin-bottom: 0;
 }
 
+/* 書き出してから答える（はじめてから30分） */
+.answer-work {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.answer-work[hidden],
+.answer-intro[hidden] {
+  display: none;
+}
+
+.answer-intro-title {
+  font-family: var(--font-heading);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--color-vivid-blue);
+  margin: 0 0 4px;
+}
+
+.answer-intro .notify-text {
+  margin-bottom: 12px;
+}
+
+.answer-clock {
+  position: sticky;
+  top: calc(var(--header-height) + 8px);
+  z-index: 2;
+  align-self: flex-end;
+  margin: 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background-color: var(--color-pale-blue);
+  color: var(--color-vivid-blue);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.answer-clock.is-low {
+  background-color: var(--color-pale-yellow);
+  color: var(--color-body);
+}
+
+.answer-clock.is-over {
+  position: static;
+  align-self: stretch;
+  border-radius: var(--radius-lg);
+  background-color: var(--color-pale-yellow);
+  color: var(--color-body);
+  font-weight: 700;
+}
+
+.answer-work textarea[readonly] {
+  background-color: var(--color-pale-blue-subtle);
+}
+
+.btn-copy-journal {
+  align-self: flex-start;
+}
+
+.answer-reset {
+  align-self: center;
+  background: none;
+  border: none;
+  padding: 8px;
+  color: var(--color-body-muted);
+  font-size: 0.8125rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .answer-out:empty,
 .answer-share-out:empty {
   display: none;

@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 
 import {
   SOS_PATTERN, isSos, SOS_CONTACTS, telHref, checkAnswer, MAX_ANSWER_LENGTH, reasonText, REASON_TEXT,
-  FREQUENCIES, isFrequency, frequencyText, selectableThemes, toggleTheme, themesLabel, noteStatus, deliveredText
+  FREQUENCIES, isFrequency, frequencyText, selectableThemes, toggleTheme, themesLabel, noteStatus, deliveredText,
+  ANSWER_MINUTES, answerClock, clockText, loadDraft, saveDraft, clearDraft
 } from "../js/standalone.mjs";
 import { resolveRoute } from "../js/core.mjs";
 import { PUSH_KINDS, PUSH_OPEN } from "../js/push.mjs";
@@ -90,4 +91,36 @@ test("送る列の種類（app-standalone.sql の check）・Edge Function・画
   assert.deepEqual(kinds, PUSH_KINDS);
   const { KINDS } = await import("../../supabase/functions/notify-push/deliver.mjs");
   assert.deepEqual(KINDS, PUSH_KINDS);
+});
+
+test("書き出してから答える: はじめてから30分。過ぎたら expired。表示は切り上げ", () => {
+  assert.equal(ANSWER_MINUTES, 30);
+  assert.deepEqual(answerClock(undefined, 0), { started: false, leftMs: 30 * 60000, expired: false });
+  const t0 = 1_000_000;
+  assert.deepEqual(answerClock(t0, t0), { started: true, leftMs: 30 * 60000, expired: false });
+  assert.equal(answerClock(t0, t0 + 29 * 60000 + 59999).expired, false);
+  assert.deepEqual(answerClock(t0, t0 + 30 * 60000), { started: true, leftMs: 0, expired: true });
+  assert.equal(answerClock(t0, t0 + 99 * 60000).leftMs, 0);
+  assert.equal(clockText(30 * 60000), "30:00");
+  assert.equal(clockText(65 * 1000 - 1), "1:05");
+  assert.equal(clockText(1), "0:01");
+  assert.equal(clockText(0), "0:00");
+});
+
+test("書き出してから答える: 下書きは問いごと。壊れていたら無いもの。消せる。storage が無くても落ちない", () => {
+  const m = new Map();
+  const storage = { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => m.set(k, v), removeItem: (k) => m.delete(k) };
+  assert.equal(loadDraft(storage, "q1"), null);
+  saveDraft(storage, "q1", { startedAt: 5, journal: "もやもや", answer: "わたしは" });
+  assert.deepEqual(loadDraft(storage, "q1"), { startedAt: 5, journal: "もやもや", answer: "わたしは" });
+  assert.equal(loadDraft(storage, "q2"), null);
+  m.set("toi.answerDraft.q3", "{壊れた");
+  assert.equal(loadDraft(storage, "q3"), null);
+  m.set("toi.answerDraft.q4", JSON.stringify({ journal: "x" }));
+  assert.equal(loadDraft(storage, "q4"), null);
+  clearDraft(storage, "q1");
+  assert.equal(loadDraft(storage, "q1"), null);
+  assert.equal(loadDraft(null, "q1"), null);
+  saveDraft(null, "q1", { startedAt: 1 });
+  clearDraft(null, "q1");
 });

@@ -61,8 +61,9 @@ import {
   createReview, currentItem, remaining, advance, reviewHeld, STAFF_REASON_TEXT
 } from "./staff.mjs";
 import {
-  checkAnswer, reasonText, SOS_CONTACTS, SOS_LEAD, SOS_TAIL, telHref, MAX_ANSWER_LENGTH,
-  FREQUENCIES, isFrequency, frequencyText, selectableThemes, toggleTheme, themesLabel, noteStatus, deliveredText
+  checkAnswer, isSos, reasonText, SOS_CONTACTS, SOS_LEAD, SOS_TAIL, telHref, MAX_ANSWER_LENGTH,
+  FREQUENCIES, isFrequency, frequencyText, selectableThemes, toggleTheme, themesLabel, noteStatus, deliveredText,
+  ANSWER_MINUTES, answerClock, clockText, loadDraft, saveDraft, clearDraft
 } from "./standalone.mjs";
 import { lineReady, watchUrl, watchRequest, viewRequest, lineIdToken, lineIdTokenIfLoggedIn, lineBootstrap, FRIEND_URL } from "./line.js";
 import {
@@ -1077,21 +1078,36 @@ function sosHtml() {
     </div>`;
 }
 
-/** 答える欄（今日の問い・問いのページ） */
+/** 答える欄（今日の問い・問いのページ）。書き出してから答える。はじめてから ANSWER_MINUTES 分のうちに書けたものを答えにする */
 function answerFormHtml(questionId) {
   return `
     <form class="answer-form" data-question="${escapeHtml(questionId)}" novalidate>
       <div class="answer-out" aria-live="polite"></div>
-      <label for="answer-body" class="form-label">あなたの答え</label>
-      <textarea id="answer-body" class="form-textarea" rows="5" maxlength="${MAX_ANSWER_LENGTH}"
-                placeholder="思ったことを、そのまま。まとまっていなくて大丈夫。"
-                aria-describedby="answer-helper"></textarea>
-      <p id="answer-helper" class="exact-helper-text">あなただけのノートに残ります。「みんなに見せる」を選ばないかぎり、だれにも見せません。</p>
-      <label class="checkbox-agree-label answer-share-label">
-        <input type="checkbox" class="checkbox-agree-input" name="share">
-        <span>みんなに見せる（スタッフが確かめてから、その問いの下に名前なしで「中高生」として載ります）</span>
-      </label>
-      <button type="submit" class="btn btn-primary btn-block">ノートに残す</button>
+      <div class="answer-intro">
+        <p class="answer-intro-title">${ANSWER_MINUTES}分で書く</p>
+        <p class="notify-text">まず、思いつくまま書き出す。それから答えを書く。はじめてから${ANSWER_MINUTES}分のうちに書けたものが、あなたの答え。</p>
+        <button type="button" class="btn btn-primary btn-block btn-answer-start">はじめる（${ANSWER_MINUTES}分）</button>
+      </div>
+      <div class="answer-work" hidden>
+        <p class="answer-clock" role="timer">残り <strong class="answer-clock-left">${clockText(ANSWER_MINUTES * 60000)}</strong></p>
+        <label for="journal-body" class="form-label">1. 書き出す</label>
+        <textarea id="journal-body" class="form-textarea answer-journal" rows="5"
+                  placeholder="浮かんだこと、引っかかったこと、反対の考え。順番もまとまりもいらない。"
+                  aria-describedby="journal-helper"></textarea>
+        <p id="journal-helper" class="exact-helper-text">書き出しはこの端末だけ。どこにも送りません。</p>
+        <label for="answer-body" class="form-label">2. あなたの答え</label>
+        <textarea id="answer-body" class="form-textarea answer-body" rows="5" maxlength="${MAX_ANSWER_LENGTH}"
+                  placeholder="書き出しから、いちばん言いたいことを。まとまっていなくて大丈夫。"
+                  aria-describedby="answer-helper"></textarea>
+        <button type="button" class="btn btn-outline btn-sm btn-copy-journal">書き出しを答えに写す</button>
+        <p id="answer-helper" class="exact-helper-text">あなただけのノートに残ります。「みんなに見せる」を選ばないかぎり、だれにも見せません。</p>
+        <label class="checkbox-agree-label answer-share-label">
+          <input type="checkbox" class="checkbox-agree-input" name="share">
+          <span>みんなに見せる（スタッフが確かめてから、その問いの下に名前なしで「中高生」として載ります）</span>
+        </label>
+        <button type="submit" class="btn btn-primary btn-block">ノートに残す</button>
+        <button type="button" class="btn-text answer-reset">やめて消す</button>
+      </div>
     </form>`;
 }
 
@@ -1103,9 +1119,93 @@ function answerFormHtml(questionId) {
 function bindAnswerForm(root, { onNext } = {}) {
   const form = root.querySelector(".answer-form");
   if (!form) return;
+  const questionId = form.dataset.question;
   const out = form.querySelector(".answer-out");
-  const textarea = form.querySelector("textarea");
+  const intro = form.querySelector(".answer-intro");
+  const work = form.querySelector(".answer-work");
+  const clock = form.querySelector(".answer-clock");
+  const journal = form.querySelector(".answer-journal");
+  const textarea = form.querySelector(".answer-body");
   const submit = form.querySelector("button[type=submit]");
+  const reset = form.querySelector(".answer-reset");
+  let draft = loadDraft(safeStorage, questionId);
+  let timer = null;
+  let warned = false;
+
+  const save = () => {
+    if (!draft) return;
+    draft.journal = journal.value;
+    draft.answer = textarea.value;
+    saveDraft(safeStorage, questionId, draft);
+  };
+  const tick = () => {
+    if (!form.isConnected) { clearInterval(timer); return; }
+    const c = answerClock(draft?.startedAt);
+    if (c.expired) {
+      clearInterval(timer);
+      journal.readOnly = true;
+      textarea.readOnly = true;
+      clock.classList.add("is-over");
+      clock.innerHTML = `${ANSWER_MINUTES}分たちました。いま書けているものが、あなたの答え。`;
+      return;
+    }
+    clock.querySelector(".answer-clock-left").textContent = clockText(c.leftMs);
+    const low = c.leftMs <= 5 * 60000;
+    clock.classList.toggle("is-low", low);
+    if (low && !warned) {
+      warned = true;
+      announce("のこり5分です。");
+    }
+  };
+  const open = () => {
+    intro.hidden = true;
+    work.hidden = false;
+    journal.value = draft.journal;
+    textarea.value = draft.answer;
+    tick();
+    if (!answerClock(draft.startedAt).expired) timer = setInterval(tick, 1000);
+  };
+  if (draft) open();
+
+  form.querySelector(".btn-answer-start").addEventListener("click", () => {
+    draft = { startedAt: Date.now(), journal: "", answer: "" };
+    saveDraft(safeStorage, questionId, draft);
+    open();
+    journal.focus();
+    announce(`はじめました。のこり${ANSWER_MINUTES}分です。`);
+  });
+  journal.addEventListener("input", save);
+  textarea.addEventListener("input", save);
+  form.querySelector(".btn-copy-journal").addEventListener("click", () => {
+    const j = journal.value.trim();
+    if (!j) return;
+    textarea.value = textarea.value.trim() ? `${textarea.value.trimEnd()}\n${j}` : j;
+    save();
+    announce("書き出しを答えに写しました。");
+  });
+  // やめて消す: 2回押しで確かめる（ダイアログは出さない）
+  reset.addEventListener("click", () => {
+    if (!reset.dataset.armed) {
+      reset.dataset.armed = "1";
+      reset.textContent = "もう一度押すと、書き出しも答えも消えます";
+      return;
+    }
+    clearInterval(timer);
+    clearDraft(safeStorage, questionId);
+    draft = null;
+    warned = false;
+    delete reset.dataset.armed;
+    reset.textContent = "やめて消す";
+    journal.value = textarea.value = "";
+    journal.readOnly = textarea.readOnly = false;
+    clock.classList.remove("is-low", "is-over");
+    clock.innerHTML = `残り <strong class="answer-clock-left">${clockText(ANSWER_MINUTES * 60000)}</strong>`;
+    out.innerHTML = "";
+    work.hidden = true;
+    intro.hidden = false;
+    form.querySelector(".btn-answer-start").focus();
+  });
+
   // 相談先は、答える欄のいちばん上に出して、そこへ移る（何より先に目に入るように）
   const showSos = () => {
     out.innerHTML = sosHtml();
@@ -1122,7 +1222,8 @@ function bindAnswerForm(root, { onNext } = {}) {
     e.preventDefault();
     const share = form.querySelector("input[name=share]").checked;
     const check = checkAnswer(textarea.value);
-    // 相談先が要る言葉は、送らずに、何より先に相談先を出す
+    // 相談先が要る言葉は、送らずに、何より先に相談先を出す（書き出しは送らないが、そこに書かれていても出す）
+    if (isSos(journal.value)) { showSos(); return; }
     if (!check.ok) {
       if (check.reason === "sos") showSos(); else showReason(check.reason);
       return;
@@ -1131,7 +1232,7 @@ function bindAnswerForm(root, { onNext } = {}) {
     out.innerHTML = "";
     let r = null;
     try {
-      r = await appAnswer(form.dataset.question, check.body, share);
+      r = await appAnswer(questionId, check.body, share);
     } catch (err) {
       console.error(err);
     }
@@ -1140,6 +1241,8 @@ function bindAnswerForm(root, { onNext } = {}) {
       if (r?.reason === "sos") showSos(); else showReason(r?.reason);
       return;
     }
+    clearInterval(timer);
+    clearDraft(safeStorage, questionId);
     const shared = share && r.share?.ok;
     form.outerHTML = answerDoneHtml(r.note_id, { share, shared, shareReason: r.share?.reason, next: Boolean(onNext) });
     const done = root.querySelector(".answer-done");
