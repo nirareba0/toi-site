@@ -1899,6 +1899,21 @@ body {
   color: var(--color-body);
 }
 
+/* アプリにする（#app・ホームの案内） */
+.home-app .notify-text {
+  margin: 0;
+}
+
+.app-can {
+  margin: 0 0 16px;
+  padding: 14px 16px 14px 34px;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  line-height: 1.8;
+  font-weight: 600;
+}
+
 .today-sheet {
   margin-bottom: 14px;
 }

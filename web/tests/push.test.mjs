@@ -210,3 +210,28 @@ test("引き継ぎの番号: 8けた。全角や空白・ハイフンが混じ�
   assert.equal(isHandoffCode("1234567"), false);
   assert.equal(isHandoffCode("123456789"), false);
 });
+
+test("アプリにする（#app）: ルート・手順・LINE の中のブラウザ・外で開く URL", async (t) => {
+  const { INSTALL_STEPS, isInAppBrowser, externalUrl, PLATFORMS } = await import("../js/push.mjs");
+  await t.test("#app のルートがある", () => {
+    assert.deepEqual(resolveRoute("#app"), { type: "route", path: "app", paramId: undefined });
+  });
+  await t.test("機種ごとに「置く→アイコンから開く」の2つ。絵はどれもある", () => {
+    for (const p of PLATFORMS) {
+      assert.equal(INSTALL_STEPS[p].length, 2);
+      for (const s of INSTALL_STEPS[p]) assert.ok(fs.existsSync(path.join(web, s.img)), s.img);
+    }
+  });
+  await t.test("LINE・Instagram の中のブラウザを見分ける。Safari・Chrome は違う", () => {
+    assert.equal(isInAppBrowser("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Safari Line/14.17.0"), true);
+    assert.equal(isInAppBrowser("Mozilla/5.0 (Linux; Android 14) Chrome/130.0 Mobile Safari/537.36 Line/14.17.0/IAB"), true);
+    assert.equal(isInAppBrowser("Mozilla/5.0 (iPhone) Instagram 300.0"), true);
+    assert.equal(isInAppBrowser("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Version/18.0 Mobile/15E148 Safari/604.1"), false);
+    assert.equal(isInAppBrowser("Mozilla/5.0 (Linux; Android 14) Chrome/130.0 Mobile Safari/537.36"), false);
+    assert.equal(isInAppBrowser("Mozilla/5.0 (Linux; Android 14; Pixel) Chrome/130.0 Mobile Safari/537.36 Online/1"), false);
+  });
+  await t.test("外で開く URL は ?openExternalBrowser=1 を足し、#app を残す", () => {
+    assert.equal(externalUrl("https://nirareba0.github.io/toi-site/#app"), "https://nirareba0.github.io/toi-site/?openExternalBrowser=1#app");
+    assert.equal(externalUrl("https://nirareba0.github.io/toi-site/?pushtest#app"), "https://nirareba0.github.io/toi-site/?pushtest=&openExternalBrowser=1#app");
+  });
+});

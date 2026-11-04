@@ -48,6 +48,29 @@ export const TUTORIAL = {
   ],
 };
 export const PLATFORMS = Object.keys(TUTORIAL);
+
+// アプリにする（#app）。ホーム画面に置いてアイコンから開けば、旗が無くても答える欄・今日の問い・ノート・通知が出る（isStandalone）。
+// この案内は旗に関係なく、だれにでも出す（2026-11-04 本人「アプリを作るように導線整えたい」）
+export const INSTALL_STEPS = {
+  ios: [
+    { img: "assets/tut-ios-add.svg", title: "ホーム画面に置く", text: "Safari で開き、下の共有ボタン（□↑）→「ホーム画面に追加」→「追加」。" },
+    { img: "assets/tut-open.svg", title: "アイコンから開く", text: "置いた「なんでポスト」のアイコンから開くと、問いに答えられます。" },
+  ],
+  android: [
+    { img: "assets/tut-android-add.svg", title: "ホーム画面に置く", text: "Chrome で開き、右上の「︙」→「ホーム画面に追加」（「アプリをインストール」のことも）。" },
+    { img: "assets/tut-open.svg", title: "アイコンから開く", text: "置いた「なんでポスト」のアイコンから開くと、問いに答えられます。" },
+  ],
+};
+
+// LINE・Instagram・Facebook の中のブラウザ。ここからはホーム画面に置けない
+export const isInAppBrowser = (ua = "") => /\bLine\/|Instagram|FBAN|FBAV/i.test(ua);
+
+// LINE の中のブラウザから、いつものブラウザ（Safari・Chrome）で開き直す URL。LINE は ?openExternalBrowser=1 の付いた URL を外で開く
+export function externalUrl(href) {
+  const u = new URL(href);
+  u.searchParams.set("openExternalBrowser", "1");
+  return u.toString();
+}
 export const PLATFORM_LABELS = { ios: "iPhone（Safari）", android: "Android（Chrome）" };
 
 // 機種を見分ける。Android でなければ iPhone の手順を先に出す（PC でも切り替えて読める）

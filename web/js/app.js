@@ -69,7 +69,7 @@ import { lineReady, watchUrl, watchRequest, viewRequest, lineIdToken, lineIdToke
 import {
   PUSH_TEST_KEY, pushReady, manifestFor, TUTORIAL, PLATFORMS, PLATFORM_LABELS, STATE_TEXT, HANDOFF_REASON_TEXT,
   platformOf, isIos, isStandalone, pushState, turnOn, turnOff, setQuestions,
-  formatHandoffCode, isHandoffCode
+  formatHandoffCode, isHandoffCode, INSTALL_STEPS, isInAppBrowser, externalUrl
 } from "./push.mjs";
 
 // スマホへの通知（push.mjs）。試しのあいだは ?pushtest で開いた端末と、ホーム画面のアイコンから開いたときだけ（PUSH_PUBLIC）
@@ -233,6 +233,13 @@ function renderHome(shouldFocusHeading = true) {
 
   mainContainer.innerHTML = `
     ${pushOn && state.isConfigured ? `<section id="home-today" class="home-today" aria-label="今日の問い" hidden></section>` : ""}
+    ${!pushOn ? `
+    <section class="home-today home-app" aria-label="アプリにする">
+      <p class="home-today-eyebrow">アプリにする</p>
+      <p class="home-today-body">問いに答えるのは、アプリから。</p>
+      <p class="notify-text">ホーム画面に置くと、問いに答えて自分だけのノートに残せます。名前もメールもいりません。</p>
+      <a href="#app" class="btn btn-primary btn-sm">アプリにする</a>
+    </section>` : ""}
     <div class="home-desktop-grid">
       <!-- 左カラム: コンパクトヒーロー -->
       <section class="home-hero" aria-labelledby="home-heading">
@@ -1346,7 +1353,8 @@ function prefsHtml(prefs, { open }) {
  * LINE で問いが届くのと同じ。毎日／週1の端末には、決まった時刻に1つ届く。自分で引くこともできる
  */
 async function renderToday({ data = null, prefsOpen = false, message = "" } = {}) {
-  if (!pushOn || !isConfigured()) {
+  if (!pushOn) { renderApp(); return; }   // ブラウザで開いた人には、アプリにする案内を出す
+  if (!isConfigured()) {
     mainContainer.innerHTML = `
       <div class="inbox-container"><div class="card p-lg text-center">
         <h1 id="today-heading" tabindex="-1" class="inbox-h1">今日の問い</h1>
@@ -1767,7 +1775,14 @@ async function renderDetail(questionId) {
       <section class="answer-section detail-answer" aria-labelledby="answer-title">
         <h2 id="answer-title" class="replies-title">この問いに答える</h2>
         ${answerFormHtml(question.id)}
-      </section>` : ""}
+      </section>` : `
+      <section class="answer-section detail-answer" aria-labelledby="answer-title">
+        <h2 id="answer-title" class="replies-title">この問いに答える</h2>
+        <div class="inbox-card notify-box">
+          <p class="notify-text">答えるのは、ホーム画面に置いた「なんでポスト」のアプリから。答えは自分だけのノートに残り、「みんなに見せる」を選んだときだけ、名前なしで載ります。</p>
+          <a href="#app" class="btn btn-primary btn-block">アプリにする</a>
+        </div>
+      </section>`}
     </div>
   `;
 
@@ -2128,6 +2143,123 @@ appDialog.addEventListener("keydown", (e) => {
  * 機種ごとに「ホーム画面に置く → ホーム画面から開く → 通知を許可」の3枚。下に、いまの状態と「通知を受け取る」。
  * iPhone はホーム画面のアプリと Safari で保存場所が分かれるので、Safari で出した問いは「引き継ぎの番号」で結ぶ（push.mjs・supabase/web-push.sql）
  */
+/**
+ * 引き継ぎの番号を出す（iPhone の Safari）。#notify と #app で使う
+ * @param {(e: unknown) => void} fail
+ * @param {string} [where] 番号を入れる場所の案内
+ */
+function bindHandoffMake(fail, where = "ホーム画面の「なんでポスト」を開き、この画面で入れてください。") {
+  document.getElementById("btn-handoff-make")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const codeOut = document.getElementById("handoff-code");
+    btn.disabled = true;
+    try {
+      const r = await makePushHandoff();
+      codeOut.innerHTML = `<span class="notify-code-num">${escapeHtml(formatHandoffCode(r.code))}</span>
+        <span class="notify-text">15分だけ使えます。${escapeHtml(where)}</span>`;
+      codeOut.hidden = false;
+      btn.textContent = "番号を出し直す";
+    } catch (err) {
+      fail(err);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+/**
+ * アプリにする (#app)
+ * ホーム画面に置いてアイコンから開けば、答える欄・今日の問い・ノート・通知が使える（push.mjs の isStandalone）。
+ * 旗（PUSH_PUBLIC）に関係なく、だれにでも出す（2026-11-04 本人「アプリを作るように導線整えたい」）。
+ * LINE などの中のブラウザでは置けないので、先にいつものブラウザで開き直してもらう
+ */
+let appPlatform = null;
+
+function renderApp() {
+  const ua = navigator.userAgent;
+  if (isStandalone(window)) {
+    mainContainer.innerHTML = `
+      <div class="inbox-container"><div class="card p-lg text-center">
+        <h1 id="app-heading" tabindex="-1" class="inbox-h1">アプリで開いています</h1>
+        <p>このまま問いに答えられます。</p>
+        <div style="margin-top: 1rem;"><a href="#today" class="btn btn-primary">今日の問いへ</a></div>
+      </div></div>`;
+    document.getElementById("app-heading")?.focus();
+    return;
+  }
+  const platform = appPlatform ?? platformOf(ua);
+  const steps = INSTALL_STEPS[platform];
+  const inApp = isInAppBrowser(ua);
+  const ios = isIos(ua, navigator.maxTouchPoints);
+  let hasLocal = false;
+  try { hasLocal = loadMyQuestions(localStorage).length > 0; } catch { /* 使えない */ }
+  const browser = platform === "android" ? "Chrome" : "Safari";
+  const here = externalUrl(`${location.origin}${location.pathname}#app`);
+
+  mainContainer.innerHTML = `
+    <div class="inbox-container">
+      <div class="inbox-header">
+        <h1 id="app-heading" class="inbox-h1" tabindex="-1">なんでポストをアプリにする</h1>
+        <p class="inbox-desc">ホーム画面に置くと、アプリとして使えます。お金も、名前やメールアドレスもいりません。</p>
+      </div>
+
+      <ul class="app-can">
+        <li>問いに答えて、自分だけのノートに残す</li>
+        <li>問いが届く（毎日・週1・自分で引く、から選べる）</li>
+        <li>自分の問いに返事が届いたら、スマホに知らせる</li>
+      </ul>
+
+      ${inApp ? `
+      <section class="inbox-card notify-box" aria-labelledby="app-external-title">
+        <h2 id="app-external-title" class="notify-step-title">まず ${browser} で開く</h2>
+        <p class="notify-text">LINE などのアプリの中では、ホーム画面に置けません。${browser} で開き直してから、下の手順へ。</p>
+        <a href="${escapeHtml(here)}" class="btn btn-primary btn-block">${browser} で開く</a>
+        <p class="notify-text">開かないときは、画面の右上（または右下）のメニューから「ブラウザで開く」を選んでください。</p>
+      </section>` : ""}
+
+      <div class="notify-platforms" role="group" aria-label="使っている機種">
+        ${PLATFORMS.map(p => `<button type="button" class="chip-btn ${p === platform ? "active" : ""}" data-platform="${p}" aria-pressed="${p === platform}">${PLATFORM_LABELS[p]}</button>`).join("")}
+      </div>
+
+      <ol class="notify-steps">
+        ${steps.map((s, i) => `
+          <li class="inbox-card notify-step">
+            <img src="${s.img}" alt="" width="96" height="115">
+            <div>
+              <span class="notify-step-num">${i + 1} / ${steps.length}</span>
+              <h2 class="notify-step-title">${s.title}</h2>
+              <p class="notify-text">${s.text}</p>
+            </div>
+          </li>`).join("")}
+      </ol>
+
+      ${ios && !inApp && hasLocal ? `
+      <section class="inbox-card notify-box" aria-labelledby="handoff-title">
+        <h2 id="handoff-title" class="notify-step-title">この Safari で出した問いも、アプリに引き継ぐ</h2>
+        <p class="notify-text">ホーム画面のアプリは、Safari とは別の場所に記録します。ここで番号を出し、アプリの「スマホに知らせてもらう」の画面で入れると、ここで出した問いの返事もアプリで読めます。</p>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-handoff-make">引き継ぎの番号を出す</button>
+        <p class="notify-code" id="handoff-code" role="status" hidden></p>
+        <p class="notify-error" id="app-out" role="alert"></p>
+      </section>` : ""}
+
+      <p class="notify-note"><a href="#home">みんなの問いへ</a></p>
+    </div>
+  `;
+  document.getElementById("app-heading")?.focus();
+
+  mainContainer.querySelectorAll("[data-platform]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      appPlatform = btn.getAttribute("data-platform");
+      renderApp();
+    });
+  });
+  bindHandoffMake((e) => {
+    console.error(e);
+    const out = document.getElementById("app-out");
+    if (out) out.textContent = "うまくいきませんでした。少し待ってから、もう一度押してください。";
+  }, "ホーム画面の「なんでポスト」を開き、「スマホに知らせてもらう」の画面で入れてください。");
+}
+
 const PUSH_QUESTIONS_KEY = "toi.push_questions";
 let notifyPlatform = null;
 
@@ -2136,7 +2268,8 @@ function wantsQuestionNotices() {
 }
 
 async function renderNotify() {
-  if (!pushOn || !isConfigured()) {
+  if (!pushOn) { renderApp(); return; }   // ブラウザで開いた人には、アプリにする案内を出す
+  if (!isConfigured()) {
     mainContainer.innerHTML = `
       <div class="inbox-container"><div class="card p-lg text-center">
         <h1 id="notify-heading" tabindex="-1" class="inbox-h1">スマホに知らせてもらう</h1>
@@ -2280,22 +2413,7 @@ async function renderNotify() {
     }
   });
 
-  document.getElementById("btn-handoff-make")?.addEventListener("click", async (e) => {
-    const btn = e.currentTarget;
-    const codeOut = document.getElementById("handoff-code");
-    btn.disabled = true;
-    try {
-      const r = await makePushHandoff();
-      codeOut.innerHTML = `<span class="notify-code-num">${escapeHtml(formatHandoffCode(r.code))}</span>
-        <span class="notify-text">15分だけ使えます。ホーム画面の「なんでポスト」を開き、この画面で入れてください。</span>`;
-      codeOut.hidden = false;
-      btn.textContent = "番号を出し直す";
-    } catch (err) {
-      fail(err);
-    } finally {
-      btn.disabled = false;
-    }
-  });
+  bindHandoffMake(fail);
 
   document.getElementById("handoff-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -2729,6 +2847,8 @@ async function handleRouting() {
     } else if (resolution.path === "today") {
       prefsDraft = null;
       await renderToday();
+    } else if (resolution.path === "app") {
+      renderApp();
     } else if (resolution.path === "staff") {
       await renderStaff();
     } else if (resolution.path === "question") {
@@ -2783,6 +2903,13 @@ function renderFooterLinks() {
     a.className = "footer-link external-link";
     a.textContent = l.label;
     container.appendChild(a);
+  }
+  if (!pushOn && !container.querySelector('a[href="#app"]')) {
+    const a = document.createElement("a");
+    a.href = "#app";
+    a.className = "footer-link";
+    a.textContent = "アプリにする";
+    container.insertBefore(a, container.querySelector('a[href="#inbox"]')?.nextSibling ?? null);
   }
   if (pushOn && !container.querySelector('a[href="#notify"]')) {
     const a = document.createElement("a");
